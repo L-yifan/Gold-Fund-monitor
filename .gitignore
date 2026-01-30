@@ -40,3 +40,4 @@ yolotrain/
 *.log
 data.json
 manual_records.json
+AGENTS.md
