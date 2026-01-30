@@ -73,4 +73,4 @@ pip install -r requirements.txt
 本项目基于 **MIT** 协议开源。仅供学习与交流使用，不构成任何投资建议。
 
 ---
-*Created with ❤️ by OpenCode*
+
