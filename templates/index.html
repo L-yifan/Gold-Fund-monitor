@@ -40,6 +40,14 @@
         .pop-effect {
             animation: pop-in 0.4s ease-out;
         }
+        /* 新增：时间更新闪烁效果 (回归文字闪烁版) */
+        @keyframes time-flash {
+            0%, 100% { color: inherit; }
+            50% { color: #facc15; }
+        }
+        .time-pop {
+            animation: time-flash 0.8s ease-out;
+        }
         /* Vue 过渡动画 */
         .fade-enter-active, .fade-leave-active { transition: opacity 0.5s; }
         .fade-enter-from, .fade-leave-to { opacity: 0; }
@@ -84,7 +92,9 @@
 
                 <div class="flex-1 text-right">
                     <p class="text-gray-400 text-xs hidden sm:block">更新时间</p>
-                    <p class="text-sm sm:text-lg font-mono">{{ currentData.time_str || '--:--:--' }}</p>
+                    <p class="text-sm sm:text-lg font-mono" :class="{'time-pop': timeAnimating}">
+                        {{ currentData.time_str || '--:--:--' }}
+                    </p>
                 </div>
             </div>
         </header>
@@ -230,15 +240,31 @@
                     
                     <!-- 价格走势图 -->
                     <div class="bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-700">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-lg font-semibold">实时价格走势</h3>
-                            <span class="text-gray-500 text-sm flex items-center gap-2">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                            <div class="flex items-center gap-4">
+                                <h3 class="text-lg font-semibold">价格走势</h3>
+                                <div class="flex bg-gray-900/50 p-1 rounded-lg border border-gray-700">
+                                    <button @click="setChartViewMode('30M')" 
+                                            class="px-3 py-1 text-xs rounded-md transition-all"
+                                            :class="chartViewMode === '30M' ? 'bg-yellow-500 text-black font-bold shadow-lg' : 'text-gray-400 hover:text-gray-200'">
+                                        30分钟
+                                    </button>
+                                    <button @click="setChartViewMode('1D')" 
+                                            class="px-3 py-1 text-xs rounded-md transition-all"
+                                            :class="chartViewMode === '1D' ? 'bg-yellow-500 text-black font-bold shadow-lg' : 'text-gray-400 hover:text-gray-200'">
+                                        当日
+                                    </button>
+                                </div>
+                            </div>
+                            <span class="text-gray-500 text-[10px] sm:text-xs flex items-center gap-2">
                                 <span class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
-                                每5秒更新
+                                {{ chartViewMode === '30M' ? '实时原始数据' : '每5秒更新' }}
                             </span>
                         </div>
-                        <div class="h-64">
-                            <canvas id="priceChart" ref="priceChart"></canvas>
+                        <div class="h-64 relative">
+                            <canvas id="priceChart" ref="priceChart" 
+                                    class="transition-opacity duration-300"
+                                    :class="chartSwitching ? 'opacity-0' : 'opacity-100'"></canvas>
                         </div>
                     </div>
 
@@ -439,6 +465,7 @@
                     buyPrice: 0,
                     records: [],
                     historyData: [], // 用于图表
+                    chartViewMode: '1D', // '30M' | '1D'
                     
                     // 系统状态
                     isConnected: false,
@@ -447,7 +474,10 @@
                     timer: null,
                     tempBuyPrice: null, // 用于输入框获取焦点时暂存数据
                     priceAnimating: false, // 控制价格跳动动画
+                    chartSwitching: false, // 控制图表切换动画
+                    timeAnimating: false, // 控制时间更新动画
                     priceAnimTimer: null, // 动画定时器引用
+                    timeAnimTimer: null, // 时间动画定时器
                     // 预警设置
                     settings: {
                         high: 0,
@@ -551,54 +581,91 @@
                 formatPrice(val) {
                     return val ? Number(val).toFixed(2) : '--';
                 },
+                setChartViewMode(mode) {
+                    if (this.chartViewMode === mode) return;
+                    
+                    // 开启切换动画 (淡出)
+                    this.chartSwitching = true;
+                    
+                    setTimeout(() => {
+                        this.chartViewMode = mode;
+                        if (this.chartInstance) {
+                            const chartData = this.processDataForChart(this.historyData);
+                            this.chartInstance.data.datasets[0].data = chartData;
+                            
+                            // 更新轴范围
+                            const now = Date.now() / 1000;
+                            if (mode === '30M') {
+                                this.chartInstance.options.scales.x.min = now - 1800;
+                                this.chartInstance.options.scales.x.max = now;
+                            } else {
+                                this.chartInstance.options.scales.x.min = undefined;
+                                this.chartInstance.options.scales.x.max = undefined;
+                            }
+                            
+                            // 使用 'none' 禁用线条位移补间动画，避免交织
+                            this.chartInstance.update('none');
+                        }
+                        
+                        // 结束切换动画 (淡入)
+                        setTimeout(() => {
+                            this.chartSwitching = false;
+                        }, 50);
+                    }, 300); // 对应 transition-opacity 时长
+                },
                 processDataForChart(rawData) {
                     if (!rawData || rawData.length === 0) return [];
                     
                     const now = Date.now() / 1000;
-                    const window30min = 30 * 60;
-                    const bucketSize = 5 * 60; // 5分钟一桶
                     const maxGap = 10 * 60; // 10分钟没有数据视为断档
                     
-                    let recentData = [];
-                    let buckets = {};
-
-                    // 按时间排序确保逻辑正确
+                    // 按时间排序
                     const sortedData = [...rawData].sort((a, b) => a.timestamp - b.timestamp);
-
-                    sortedData.forEach(item => {
-                        const age = now - item.timestamp;
-                        if (age <= window30min) {
-                            recentData.push(item);
-                        } else {
-                            const bucketKey = Math.floor(item.timestamp / bucketSize);
-                            if (!buckets[bucketKey]) {
-                                buckets[bucketKey] = { min: item, max: item };
-                            } else {
-                                if (item.price < buckets[bucketKey].min.price) buckets[bucketKey].min = item;
-                                if (item.price > buckets[bucketKey].max.price) buckets[bucketKey].max = item;
-                            }
-                        }
-                    });
-
-                    let bucketList = Object.values(buckets).flatMap(b => {
-                        if (b.min.timestamp === b.max.timestamp) return [b.min];
-                        return b.min.timestamp < b.max.timestamp ? [b.min, b.max] : [b.max, b.min];
-                    });
-
-                    // 合并并排序
-                    let mergedData = [...bucketList, ...recentData].sort((a, b) => a.timestamp - b.timestamp);
                     
-                    // 插入断档标记 (null) 以实现连线断开
+                    let filteredData = [];
+
+                    if (this.chartViewMode === '30M') {
+                        // 30分钟模式：直接显示原始点
+                        filteredData = sortedData.filter(item => item.timestamp > now - 1800);
+                    } else {
+                        // 1D 模式：保留聚合逻辑
+                        const bucketSize = 5 * 60; // 5分钟一桶
+                        let buckets = {};
+                        let recentData = [];
+
+                        sortedData.forEach(item => {
+                            const age = now - item.timestamp;
+                            if (age <= 1800) { // 最近30分钟用原始点
+                                recentData.push(item);
+                            } else {
+                                const bucketKey = Math.floor(item.timestamp / bucketSize);
+                                if (!buckets[bucketKey]) {
+                                    buckets[bucketKey] = { min: item, max: item };
+                                } else {
+                                    if (item.price < buckets[bucketKey].min.price) buckets[bucketKey].min = item;
+                                    if (item.price > buckets[bucketKey].max.price) buckets[bucketKey].max = item;
+                                }
+                            }
+                        });
+
+                        let bucketList = Object.values(buckets).flatMap(b => {
+                            if (b.min.timestamp === b.max.timestamp) return [b.min];
+                            return b.min.timestamp < b.max.timestamp ? [b.min, b.max] : [b.max, b.min];
+                        });
+                        
+                        filteredData = [...bucketList, ...recentData].sort((a, b) => a.timestamp - b.timestamp);
+                    }
+
+                    // 插入断档标记 (null)
                     let finalData = [];
-                    for (let i = 0; i < mergedData.length; i++) {
+                    for (let i = 0; i < filteredData.length; i++) {
                         if (i > 0) {
-                            const gap = mergedData[i].timestamp - mergedData[i-1].timestamp;
+                            const gap = filteredData[i].timestamp - filteredData[i-1].timestamp;
                             if (gap > maxGap) {
-                                // 插入一个 null 点，Chart.js 会自动断开线
-                                finalData.push({ x: (mergedData[i-1].timestamp + 1), y: null });
+                                finalData.push({ x: (filteredData[i-1].timestamp + 1), y: null });
                             }
                         }
-                        finalData.push({ x: mergedData[i].timestamp, y: mergedData[i].price });
+                        finalData.push({ x: filteredData[i].timestamp, y: filteredData[i].price });
                     }
                     
                     return finalData;
@@ -624,7 +691,6 @@
                         
                         if (data.success) {
                             this.isConnected = true;
-                            this.currentData = data.data;
                             
                             // 检查预警
                             this.checkAlerts(data.data.price);
@@ -645,22 +711,38 @@
 
                             // 仅当价格发生变化或首次加载时才触发动画
                             const priceChanged = this.currentData.price !== data.data.price;
+                            const timeChanged = this.currentData.time_str !== data.data.time_str;
                             
                             this.currentData = data.data;
 
                             // 更新图表数据
                             this.updateChartData(data.data);
                             
-                            // 触发跳动动画 (仅在价格变动且非首次加载时，或者是首次加载)
+                            // 价格跳动动画
                             if (priceChanged) {
-                                // 清除可能存在的旧定时器，防止冲突
                                 if (this.priceAnimTimer) clearTimeout(this.priceAnimTimer);
-                                
-                                this.priceAnimating = true;
-                                this.priceAnimTimer = setTimeout(() => {
-                                    this.priceAnimating = false;
-                                    this.priceAnimTimer = null;
-                                }, 400); // 对应 CSS 动画时长
+                                // 强制重置动画状态以触发 Vue 重新渲染/CSS 重新开始
+                                this.priceAnimating = false;
+                                this.$nextTick(() => {
+                                    this.priceAnimating = true;
+                                    this.priceAnimTimer = setTimeout(() => {
+                                        this.priceAnimating = false;
+                                        this.priceAnimTimer = null;
+                                    }, 400);
+                                });
+                            }
+
+                            // 时间闪烁动画
+                            if (timeChanged) {
+                                if (this.timeAnimTimer) clearTimeout(this.timeAnimTimer);
+                                this.timeAnimating = false;
+                                this.$nextTick(() => {
+                                    this.timeAnimating = true;
+                                    this.timeAnimTimer = setTimeout(() => {
+                                        this.timeAnimating = false;
+                                        this.timeAnimTimer = null;
+                                    }, 800);
+                                });
                             }
 
                         } else {
@@ -881,12 +963,12 @@
                 initChart() {
 
                     if (this.chartInstance) return;
-                    
+
                     // 使用 nextTick 确保 DOM 已渲染
                     this.$nextTick(() => {
                         const canvas = this.$refs.priceChart;
                         if (!canvas) return;
-                        
+
                         const ctx = canvas.getContext('2d');
                         const chartData = this.processDataForChart(this.historyData);
 
@@ -919,7 +1001,7 @@
                                 }]
                             },
                             options: {
-                                 responsive: true,
+                                responsive: true,
                                 maintainAspectRatio: false,
                                 layout: {
                                     padding: {
@@ -954,6 +1036,8 @@
                                 scales: {
                                     x: { 
                                         type: 'linear', // 切换为线性时间轴
+                                        min: this.chartViewMode === '30M' ? (Date.now() / 1000 - 1800) : undefined,
+                                        max: this.chartViewMode === '30M' ? (Date.now() / 1000) : undefined,
                                         grid: { color: 'rgba(255,255,255,0.05)' }, 
                                         ticks: { 
                                             color: '#9ca3af', 
@@ -979,11 +1063,16 @@
                             plugins: [{
                                 id: 'highLowMarkers',
                                 afterDatasetsDraw(chart) {
-                                     const { ctx, scales: { y }, chartArea: { left, right } } = chart;
-                                    const isMobile = window.innerWidth < 640;
-                                    const dataset = chart.data.datasets[0].data;
+                                     const { ctx, scales: { x, y }, chartArea: { left, right } } = chart;
+                                     const isMobile = window.innerWidth < 640;
+                                     const dataset = chart.data.datasets[0].data;
 
-                                    const validData = dataset.filter(d => d.y !== null).map(d => d.y);
+                                    const minX = x.min;
+                                    const maxX = x.max;
+                                    const validData = dataset
+                                        .filter(d => d.y !== null && d.x !== null)
+                                        .filter(d => (minX === undefined || d.x >= minX) && (maxX === undefined || d.x <= maxX))
+                                        .map(d => d.y);
                                     if (validData.length < 2) return;
  
                                     let minPrice = Math.min(...validData);
@@ -1063,10 +1152,24 @@
                     
                     // 将新点加入 historyData 供 processDataForChart 使用
                     this.historyData.push(newData);
+
+                    // 定期清理前端历史数据 (只保留最近 24 小时)，防止内存溢出
+                    const now = Date.now() / 1000;
+                    if (this.historyData.length > 500) { // 稍微积累一点再清理
+                        const dayAgo = now - 86400;
+                        this.historyData = this.historyData.filter(h => h.timestamp > dayAgo);
+                    }
                     
                     // 重新计算并全量更新
                     const chartData = this.processDataForChart(this.historyData);
                     this.chartInstance.data.datasets[0].data = chartData;
+                    
+                    // 30M 模式下动态移动窗口
+                    if (this.chartViewMode === '30M') {
+                        const now = Date.now() / 1000;
+                        this.chartInstance.options.scales.x.min = now - 1800;
+                        this.chartInstance.options.scales.x.max = now;
+                    }
                     
                     this.chartInstance.update('none'); 
                 }

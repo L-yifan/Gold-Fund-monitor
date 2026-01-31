@@ -151,129 +151,6 @@ lock = threading.RLock()
 
 
 # ==================== 数据获取实现 ====================
-def fetch_hist_eastmoney():
-    """从东方财富获取历史 1 分钟 K 线"""
-    try:
-        url = "https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=118.AU9999&fields1=f1&fields2=f51,f53&klt=1&fqt=1&lmt=1440"
-        response = requests.get(url, headers=HEADERS, timeout=5)
-        data = response.json()
-        if data.get('data') and data['data'].get('klines'):
-            klines = data['data']['klines']
-            points = []
-            for kl in klines:
-                parts = kl.split(',')
-                if len(parts) >= 2:
-                    dt_obj = datetime.strptime(parts[0], "%Y-%m-%d %H:%M")
-                    points.append({
-                        "price": float(parts[1]),
-                        "timestamp": dt_obj.timestamp(),
-                        "time_str": dt_obj.strftime("%H:%M:%S"),
-                        "source": "历史补全(东财)"
-                    })
-            return points
-    except Exception as e:
-        print(f"[历史补全-东财] 失败: {e}")
-    return None
-
-def fetch_hist_sina():
-    """从新浪财经获取历史 1 分钟 K 线"""
-    try:
-        # 新浪 Au9999 分时接口
-        url = "https://quotes.sina.cn/cn/api/jsonp_v2.php/var%20_AU9999_1_1700000000=/CN_MarketDataService.getKLineData?symbol=AU9999&scale=1&ma=no&datalen=1440"
-        response = requests.get(url, headers=HEADERS, timeout=5)
-        text = response.text
-        # 处理 jsonp
-        match = re.search(r'\((.*)\)', text)
-        if not match: return None
-        
-        data = json.loads(match.group(1))
-        if isinstance(data, list):
-            points = []
-            for item in data:
-                # 格式: {"day":"2024-01-31 15:00:00","open":"550.00",...}
-                dt_obj = datetime.strptime(item['day'], "%Y-%m-%d %H:%M:%S")
-                points.append({
-                    "price": float(item['close']),
-                    "timestamp": dt_obj.timestamp(),
-                    "time_str": dt_obj.strftime("%H:%M:%S"),
-                    "source": "历史补全(新浪)"
-                })
-            return points
-    except Exception as e:
-        print(f"[历史补全-新浪] 失败: {e}")
-    return None
-
-def fetch_hist_tencent():
-    """从腾讯财经获取历史 1 分钟 K 线"""
-    try:
-        # 腾讯接口，返回最近几百个点
-        url = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?_var=kline_day&param=shau9999,m1,,,1440,qfq"
-        response = requests.get(url, headers=HEADERS, timeout=5)
-        data = response.json()
-        
-        # 解析腾讯复杂格式
-        res = data.get('data', {}).get('shau9999', {})
-        klines = res.get('m1') or res.get('day')
-        if klines:
-            points = []
-            for kl in klines:
-                # 格式: ["202401311500", "550.00", ...]
-                dt_str = kl[0]
-                dt_obj = datetime.strptime(dt_str, "%Y%m%d%H%M")
-                points.append({
-                    "price": float(kl[2]), # 收盘价
-                    "timestamp": dt_obj.timestamp(),
-                    "time_str": dt_obj.strftime("%H:%M:%S"),
-                    "source": "历史补全(腾讯)"
-                })
-            return points
-    except Exception as e:
-        print(f"[历史补全-腾讯] 失败: {e}")
-    return None
-
-def fetch_historical_kline():
-    """
-    多源回补历史数据断层
-    """
-    handlers = [fetch_hist_eastmoney, fetch_hist_sina, fetch_hist_tencent]
-    for handler in handlers:
-        points = handler()
-        if points and len(points) > 0:
-            print(f"成功通过 [{handler.__name__}] 获取到 {len(points)} 个历史数据点")
-            return points
-    return []
-
-
-def sync_historical_data():
-    """同步历史数据到内存缓存"""
-    global price_history
-    print("正在尝试补全历史数据断层...")
-    
-    historical_points = fetch_historical_kline()
-    if not historical_points:
-        return
-        
-    with lock:
-        # 获取现有的所有时间戳，用于去重
-        existing_timestamps = {round(p['timestamp'] / 60) for p in price_history}
-        
-        added_count = 0
-        for p in historical_points:
-            # 以分钟为单位去重，避免与现有的高频实时数据冲突
-            ts_min = round(p['timestamp'] / 60)
-            if ts_min not in existing_timestamps:
-                price_history.append(p)
-                existing_timestamps.add(ts_min)
-                added_count += 1
-        
-        # 重新按时间戳排序，确保队列有序
-        sorted_history = sorted(list(price_history), key=lambda x: x['timestamp'])
-        price_history.clear()
-        price_history.extend(sorted_history)
-        
-        print(f"历史补全完成: 新增 {added_count} 个分时数据点")
-        if added_count > 0:
-            save_data()
 def fetch_from_eastmoney(source_config):
     """
     从东方财富获取 Au99.99 实时价格
@@ -614,8 +491,8 @@ def background_fetch_loop():
                 # 记录成功后保存数据（内部包含清理逻辑）
                 save_data()
             
-            # 每 10 秒采集一次（后台不需要太频繁，平衡性能与连续性）
-            time.sleep(10)
+            # 每 5 秒采集一次（后台不需要太频繁，平衡性能与连续性）
+            time.sleep(5)
         except Exception as e:
             print(f"后台抓取异常: {e}")
             time.sleep(30) # 异常后等待较长时间再重试
@@ -752,8 +629,5 @@ if __name__ == '__main__':
     # 启动后台抓取线程
     t = threading.Thread(target=background_fetch_loop, daemon=True)
     t.start()
-    
-    # 启动后延迟 2 秒执行一次历史数据补全，避免与初始化加载冲突
-    threading.Timer(2.0, sync_historical_data).start()
     
     app.run(host='0.0.0.0', port=5000, debug=True, threaded=True, use_reloader=False)
