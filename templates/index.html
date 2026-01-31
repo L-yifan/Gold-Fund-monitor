@@ -57,6 +57,16 @@
         .modal-enter-from, .modal-leave-to { opacity: 0; transform: scale(0.95); }
         .modal-enter-to, .modal-leave-from { opacity: 1; transform: scale(1); }
         
+        /* 移除 input type=number 的默认上下箭头 */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield; /* Firefox */
+        }
+
         [v-cloak] { display: none; }
     </style>
 </head>
@@ -173,21 +183,35 @@
                     <!-- 买入价格设置 -->
                     <div class="bg-gray-800 rounded-2xl p-6 shadow-lg">
                         <h3 class="text-lg font-semibold mb-4 text-yellow-400">我的买入成本</h3>
-                        <div class="flex gap-2">
-                            <input type="number" v-model.number="buyPrice"
-                                @focus="handleInputFocus($event)" 
-                                @blur="handleInputBlur"
-                                class="flex-1 bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-xl font-mono focus:outline-none focus:border-yellow-500 transition-colors"
-                                placeholder="输入买入价格" step="0.01">
-                            <button @click="resetToCurrent" 
-                                class="bg-gray-700 hover:bg-gray-600 text-gray-300 px-4 py-3 rounded-lg transition"
-                                title="重置为当前价格">
-                                ↺
-                            </button>
+                        <div class="grid grid-cols-5 gap-2">
+                            <!-- 买入价格 (占3份) -->
+                            <div class="col-span-3 flex">
+                                <input type="number" v-model.number="buyPrice"
+                                    @focus="handleInputFocus($event)" 
+                                    @blur="handleInputBlur"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded-l-lg px-4 py-3 text-xl font-mono focus:outline-none focus:border-yellow-500 transition-colors"
+                                    placeholder="买入价" step="0.01">
+                                <button @click="resetToCurrent" 
+                                    class="bg-gray-600 hover:bg-gray-500 text-gray-300 px-3 py-3 rounded-r-lg transition border-l border-gray-500"
+                                    title="重置为当前价格">
+                                    ↺
+                                </button>
+                            </div>
+                            
+                            <!-- 买入克数 (占2份) -->
+                            <div class="col-span-2 relative">
+                                <input type="number" v-model.number="buyWeight"
+                                    @focus="handleInputFocus($event)"
+                                    class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-3 text-xl font-mono focus:outline-none focus:border-yellow-500 transition-colors text-right pr-8"
+                                    placeholder="克数" step="1">
+                                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none">g</span>
+                            </div>
                         </div>
                         <p class="text-gray-500 text-sm mt-2 flex justify-between">
                             <span>* 手续费率: 0.5%</span>
-                            <span v-if="buyPrice > 0" class="text-yellow-500/80">已设成本: {{ buyPrice.toFixed(2) }}</span>
+                            <span v-if="buyPrice > 0" class="text-yellow-500/80">
+                                持仓: {{ buyWeight > 0 ? buyWeight : '--' }}g @ {{ buyPrice.toFixed(2) }}
+                            </span>
                             <span v-else class="text-gray-600">未设置</span>
                         </p>
                     </div>
@@ -203,7 +227,10 @@
                                {{ buyPrice > 0 ? (currentProfit.rate >= 0 ? '+' : '') + currentProfit.rate + '%' : '--%' }}
                             </p>
                             <p class="text-gray-500 text-sm font-mono">
-                                每克盈亏: {{ buyPrice > 0 ? (currentProfit.amount >= 0 ? '+' : '') + currentProfit.amount + ' 元' : '-- 元' }}
+                                {{ buyWeight > 0 ? '总盈亏' : '每克盈亏' }}: 
+                                <span class="text-lg font-bold" :class="currentProfit.amount >= 0 ? 'text-red-400' : 'text-green-400'">
+                                    {{ buyPrice > 0 ? (currentProfit.amount >= 0 ? '+' : '') + currentProfit.amount + ' 元' : '-- 元' }}
+                                </span>
                             </p>
                         </div>
                         <!-- 盈利进度条 -->
@@ -308,7 +335,7 @@
                                 <thead>
                                     <tr class="text-gray-400 text-sm border-b border-gray-700">
                                         <th class="text-left py-3">目标盈利</th>
-                                        <th class="text-right py-3">每克盈利</th>
+                                        <th class="text-right py-3">{{ buyWeight > 0 ? '总盈利' : '每克盈利' }}</th>
                                         <th class="text-right py-3">需涨至</th>
                                         <th class="text-right py-3">实际涨幅</th>
                                         <th class="text-right py-3">距目标</th>
@@ -463,6 +490,7 @@
                         time_str: '--:--:--'
                     },
                     buyPrice: 0,
+                    buyWeight: 1, // 默认 1g
                     records: [],
                     historyData: [], // 用于图表
                     chartViewMode: '1D', // '30M' | '1D'
@@ -514,7 +542,14 @@
                     const feeRate = 0.005;
                     const actualReceive = this.currentData.price * (1 - feeRate);
                     const rate = ((actualReceive - this.buyPrice) / this.buyPrice * 100);
-                    const amount = actualReceive - this.buyPrice;
+                    // 基础每克盈亏
+                    let amount = actualReceive - this.buyPrice;
+                    
+                    // 如果设置了克数，则计算总盈亏
+                    if (this.buyWeight && this.buyWeight > 0) {
+                        amount = amount * this.buyWeight;
+                    }
+                    
                     return {
                         rate: rate.toFixed(2),
                         amount: amount.toFixed(2)
@@ -549,7 +584,13 @@
                     return targets.map(percent => {
                         // 目标卖出价 = 买入价 * (1 + 利润率) / (1 - 手续费)
                         const sellPrice = this.buyPrice * (1 + percent / 100) / (1 - feeRate);
-                        const profitAmount = (this.buyPrice * percent / 100).toFixed(2);
+                        let profitAmount = (this.buyPrice * percent / 100);
+                        
+                        // 如果有克数，计算总盈利
+                        if (this.buyWeight && this.buyWeight > 0) {
+                            profitAmount = profitAmount * this.buyWeight;
+                        }
+
                         const requiredGain = ((sellPrice - this.buyPrice) / this.buyPrice * 100);
                         const reached = this.currentData.price >= sellPrice;
                         // 计算进度 0-100%
@@ -560,7 +601,7 @@
                         return {
                             percent,
                             sellPrice: sellPrice.toFixed(2),
-                            profitAmount: profitAmount,
+                            profitAmount: profitAmount.toFixed(2),
                             requiredGain: requiredGain.toFixed(2),
                             reached,
                             progress: progress.toFixed(1)
@@ -690,7 +731,10 @@
                         const data = await res.json();
                         
                         if (data.success) {
-                            this.isConnected = true;
+                            // 检查数据新鲜度 (20秒阈值)
+                            const now = Date.now() / 1000;
+                            const isStale = (now - data.data.timestamp) > 20;
+                            this.isConnected = !isStale;
                             
                             // 检查预警
                             this.checkAlerts(data.data.price);
