@@ -60,6 +60,9 @@ MUTE_DURATION = 60  # 熔断持续时间（秒）
 
 # 缓存与数据新鲜度配置
 CACHE_TTL_SECONDS = 60       # 基金数据缓存有效期（秒）
+FUND_STALE_TTL_SECONDS = 300  # 基金数据可接受的过期时间（秒）
+HOLDINGS_CACHE_TTL_SECONDS = 10  # 持仓汇总缓存有效期（秒）
+HOLDINGS_STALE_TTL_SECONDS = 300  # 持仓汇总可接受的过期时间（秒）
 STALE_THRESHOLD_SECONDS = 30  # 金价数据过期阈值（秒）
 MAX_FETCH_WORKERS = 10        # 并发获取数据的线程池大小
 
@@ -87,6 +90,16 @@ fund_watchlist = []
 fund_portfolios = {}
 # 基金数据缓存 (内存缓存，不持久化详情，只持久化代码列表)
 fund_cache = {}
+
+# 持仓数据缓存 (内存缓存，用于加速基金估值页刷新)
+holdings_cache = {
+    "timestamp": 0,
+    "response": None
+}
+
+# 后台刷新标记
+fund_refreshing = False
+holdings_refreshing = False
 
 # 数据持久化文件
 DATA_FILE = "data.json"
@@ -623,6 +636,175 @@ def fetch_fund_data(fund_code):
     return None
 
 
+def refresh_fund_cache_async(codes):
+    """后台刷新基金缓存，避免阻塞接口"""
+    if not codes:
+        return
+    global fund_refreshing
+    with lock:
+        if fund_refreshing:
+            return
+        fund_refreshing = True
+
+    def _worker():
+        global fund_refreshing
+        try:
+            with ThreadPoolExecutor(max_workers=MAX_FETCH_WORKERS) as executor:
+                fetched_list = list(executor.map(fetch_fund_data, codes))
+            with lock:
+                for i, data in enumerate(fetched_list):
+                    if data:
+                        fund_cache[codes[i]] = data
+        finally:
+            with lock:
+                fund_refreshing = False
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+def build_holdings_response(holdings, fund_data_list, cached_map):
+    """合并持仓与基金数据，计算盈亏"""
+    results = []
+    total_cost = 0
+    total_value = 0
+
+    for i, holding in enumerate(holdings):
+        fund_data = fund_data_list[i] or cached_map.get(holding['code'])
+
+        cost_price = holding.get('cost_price', 0)
+        shares = holding.get('shares', 0)
+        cost = cost_price * shares
+        total_cost += cost
+
+        current_price = fund_data['price'] if fund_data else 0
+        change = fund_data['change'] if fund_data else 0
+        time_str = fund_data.get('time_str', '--') if fund_data else '--'
+        source = fund_data.get('source', '--') if fund_data else '--'
+
+        market_value = current_price * shares if current_price > 0 else 0
+        total_value += market_value
+
+        profit_amount = market_value - cost if current_price > 0 else 0
+        profit_rate = ((current_price - cost_price) / cost_price * 100) if cost_price > 0 and current_price > 0 else 0
+
+        results.append({
+            "code": holding['code'],
+            "name": fund_data['name'] if fund_data else holding.get('name', f'基金{holding["code"]}'),
+            "cost_price": round(cost_price, 4),
+            "shares": round(shares, 2),
+            "current_price": round(current_price, 4) if current_price else 0,
+            "change": round(change, 2),
+            "profit_rate": round(profit_rate, 2),
+            "profit_amount": round(profit_amount, 2),
+            "market_value": round(market_value, 2),
+            "cost": round(cost, 2),
+            "time_str": time_str,
+            "source": source,
+            "note": holding.get('note', ''),
+            "data_available": fund_data is not None
+        })
+
+    total_profit = total_value - total_cost
+    total_profit_rate = (total_profit / total_cost * 100) if total_cost > 0 else 0
+
+    return {
+        "success": True,
+        "data": results,
+        "summary": {
+            "total_cost": round(total_cost, 2),
+            "total_value": round(total_value, 2),
+            "total_profit": round(total_profit, 2),
+            "total_profit_rate": round(total_profit_rate, 2),
+            "count": len(results)
+        },
+        "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+
+
+def refresh_holdings_cache_async(holdings):
+    """后台刷新持仓缓存"""
+    if not holdings:
+        return
+    global holdings_refreshing
+    with lock:
+        if holdings_refreshing:
+            return
+        holdings_refreshing = True
+
+    def _worker():
+        global holdings_refreshing
+        try:
+            codes = [h['code'] for h in holdings]
+            with ThreadPoolExecutor(max_workers=MAX_FETCH_WORKERS) as executor:
+                fund_data_list = list(executor.map(fetch_fund_data, codes))
+
+            with lock:
+                cached_map = {code: fund_cache.get(code) for code in codes}
+                for i, data in enumerate(fund_data_list):
+                    if data:
+                        fund_cache[codes[i]] = data
+
+            response = build_holdings_response(holdings, fund_data_list, cached_map)
+            with lock:
+                holdings_cache["timestamp"] = time.time()
+                holdings_cache["response"] = response
+        finally:
+            with lock:
+                holdings_refreshing = False
+
+    threading.Thread(target=_worker, daemon=True).start()
+
+
+def build_portfolio_meta(holdings, report_period="", source="", parse_error=None, estimate_mode="none"):
+    """构建重仓股贡献估算元数据"""
+    weight_coverage = round(
+        sum(item.get("weight", 0) for item in holdings if item.get("weight", 0) > 0),
+        2
+    )
+    contribution_total = round(
+        sum(
+            item.get("contribution", 0)
+            for item in holdings
+            if isinstance(item.get("contribution"), (int, float))
+        ),
+        4
+    )
+
+    if weight_coverage >= 70:
+        confidence_label = "高"
+    elif weight_coverage >= 40:
+        confidence_label = "中"
+    else:
+        confidence_label = "低"
+
+    meta = {
+        "weight_coverage": weight_coverage,
+        "contribution_total": contribution_total,
+        "contribution_available": weight_coverage > 0,
+        "confidence_label": confidence_label,
+        "report_period": report_period,
+        "source": source,
+        "estimate_mode": estimate_mode
+    }
+    if parse_error:
+        meta["parse_error"] = parse_error
+    return meta
+
+
+def apply_equal_weight_estimate(holdings):
+    """对无权重的重仓股使用等权估算贡献"""
+    if not holdings:
+        return holdings
+    weight = round(100 / len(holdings), 2)
+    for item in holdings:
+        item["weight"] = weight
+        if isinstance(item.get("change_percent"), (int, float)):
+            item["contribution"] = round(item["weight"] * item["change_percent"] / 100, 4)
+        else:
+            item["contribution"] = None
+    return holdings
+
+
 def fetch_fund_portfolio(fund_code, force_refresh=False):
     """
     获取基金持仓股票实时数据（含占比和贡献估算）
@@ -637,11 +819,13 @@ def fetch_fund_portfolio(fund_code, force_refresh=False):
         report_period = ""
         use_cache = False
 
+        stale_cache_item = None
         # 1. 尝试从持久化缓存获取构成 (有效期 24 小时)
         if not force_refresh:
             with lock:
                 if fund_code in fund_portfolios:
                     cache_item = fund_portfolios[fund_code]
+                    stale_cache_item = cache_item
                     if now_ts - cache_item.get('timestamp', 0) < PORTFOLIO_CACHE_TTL:
                         holdings_info = cache_item.get('holdings_info', {})
                         report_period = cache_item.get('report_period', "")
@@ -656,8 +840,31 @@ def fetch_fund_portfolio(fund_code, force_refresh=False):
                 "Referer": "http://fundf10.eastmoney.com/"
             }
             response = requests.get(url, headers=headers, timeout=8)
+            if response.status_code != 200:
+                return {
+                    "holdings": [],
+                    "meta": build_portfolio_meta([], report_period=report_period, source="eastmoney", parse_error="请求失败")
+                }
             response.encoding = 'utf-8'
             text = response.text
+
+            if not text or len(text) < 200:
+                return {
+                    "holdings": [],
+                    "meta": build_portfolio_meta([], report_period=report_period, source="eastmoney", parse_error="响应内容过短")
+                }
+
+            if re.search(r'暂无持仓|暂无数据|无重仓股|未披露', text):
+                return {
+                    "holdings": [],
+                    "meta": build_portfolio_meta([], report_period=report_period, source="eastmoney", parse_error="暂无持仓披露")
+                }
+
+            content_match = re.search(r'content\s*:\s*"(.*)"', text, re.S)
+            if content_match:
+                text = content_match.group(1)
+                text = text.replace('\\r', '').replace('\\n', '').replace('\\t', '')
+                text = text.replace('\\"', '"')
             
             # 提取报告期（如 "2025年4季度"）
             period_match = re.search(r'(\d{4})年(\d)季度', text)
@@ -665,12 +872,33 @@ def fetch_fund_portfolio(fund_code, force_refresh=False):
                 report_period = f"{period_match.group(1)}年{period_match.group(2)}季度"
             
             # 解析 HTML 表格：提取 code, name, weight
-            pattern = r"<td><a[^>]*>(\d{6})</a></td>\s*<td class='tol'><a[^>]*>([^<]+)</a></td>.*?<td class='tor'>(\d+\.?\d*)%</td>"
+            pattern = r"<td[^>]*>\s*<a[^>]*>(\d{5,6})</a>\s*</td>\s*<td[^>]*>\s*<a[^>]*>([^<]+)</a>\s*</td>.*?<td[^>]*>(\d+\.?\d*)%\s*</td>"
             matches = re.findall(pattern, text, re.DOTALL)
             
             if not matches:
-                # 降级：尝试旧 API (旧 API 可能获取不到权重，目前先保持现状)
-                return fetch_fund_portfolio_fallback(fund_code)
+                # 先尝试使用过期缓存
+                if stale_cache_item and stale_cache_item.get("holdings_info"):
+                    holdings_info = stale_cache_item.get("holdings_info", {})
+                    report_period = stale_cache_item.get("report_period", report_period)
+                    use_cache = True
+                else:
+                    # 降级：尝试旧 API (旧 API 可能获取不到权重，目前先保持现状)
+                    fallback = fetch_fund_portfolio_fallback(fund_code)
+                    if fallback and fallback.get("holdings"):
+                        holdings = apply_equal_weight_estimate(fallback.get("holdings"))
+                        meta = build_portfolio_meta(
+                            holdings,
+                            report_period=fallback.get("meta", {}).get("report_period", ""),
+                            source="fallback",
+                            parse_error="解析失败，已使用等权估算",
+                            estimate_mode="equal_weight"
+                        )
+                        meta["contribution_available"] = True
+                        return {"holdings": holdings, "meta": meta}
+                    return {
+                        "holdings": [],
+                        "meta": build_portfolio_meta([], report_period=report_period, source="eastmoney", parse_error="解析失败")
+                    }
             
             # 构建持仓信息内容
             for code, name, weight in matches:
@@ -692,7 +920,10 @@ def fetch_fund_portfolio(fund_code, force_refresh=False):
                 threading.Thread(target=save_data, daemon=True).start()
 
         if not holdings_info:
-            return []
+            return {
+                "holdings": [],
+                "meta": build_portfolio_meta([], report_period=report_period, source="eastmoney")
+            }
         
         # 3. 映射为新浪 API 格式
         sina_codes = []
@@ -718,7 +949,10 @@ def fetch_fund_portfolio(fund_code, force_refresh=False):
                 code_map[sina_code] = code
 
         if not sina_codes:
-            return []
+            return {
+                "holdings": [],
+                "meta": build_portfolio_meta([], report_period=report_period, source="eastmoney")
+            }
             
         # 3. 批量获取实时行情
         list_str = ",".join(sina_codes)
@@ -747,7 +981,7 @@ def fetch_fund_portfolio(fund_code, force_refresh=False):
                 "weight": info.get("weight", 0),
                 "price": 0,
                 "change_percent": 0,
-                "contribution": 0,
+                "contribution": None,
                 "report_period": report_period
             }
             
@@ -775,11 +1009,26 @@ def fetch_fund_portfolio(fund_code, force_refresh=False):
                             item["change_percent"] = round((current - prev_close) / prev_close * 100, 2)
                 
                 # 4. 计算贡献：weight * change_percent / 100
-                item["contribution"] = round(item["weight"] * item["change_percent"] / 100, 4)
+                if item["weight"] > 0:
+                    item["contribution"] = round(item["weight"] * item["change_percent"] / 100, 4)
             
             portfolio.append(item)
                 
-        return portfolio
+        estimate_mode = "none"
+        parse_error = None
+        if use_cache and stale_cache_item and stale_cache_item.get("holdings_info") and not (now_ts - stale_cache_item.get('timestamp', 0) < PORTFOLIO_CACHE_TTL):
+            estimate_mode = "cached_stale"
+            parse_error = "使用过期缓存权重估算"
+        meta = build_portfolio_meta(
+            portfolio,
+            report_period=report_period,
+            source="eastmoney",
+            parse_error=parse_error,
+            estimate_mode=estimate_mode
+        )
+        if estimate_mode != "none":
+            meta["contribution_available"] = True
+        return {"holdings": portfolio, "meta": meta}
 
     except Exception as e:
         print(f"获取持仓失败 {fund_code}: {e}")
@@ -805,7 +1054,10 @@ def fetch_fund_portfolio_fallback(fund_code):
             
         codes_str = match.group(1)
         if not codes_str:
-            return []
+            return {
+                "holdings": [],
+                "meta": build_portfolio_meta([], report_period="", source="fallback")
+            }
             
         codes = [c.strip('"\'') for c in codes_str.split(',')][:10]
         
@@ -832,7 +1084,10 @@ def fetch_fund_portfolio_fallback(fund_code):
                 code_map[sina_code] = code
 
         if not sina_codes:
-            return []
+            return {
+                "holdings": [],
+                "meta": build_portfolio_meta([], report_period="", source="fallback")
+            }
             
         list_str = ",".join(sina_codes)
         hq_url = f"http://hq.sinajs.cn/list={list_str}"
@@ -857,7 +1112,7 @@ def fetch_fund_portfolio_fallback(fund_code):
                     "weight": 0,
                     "price": 0,
                     "change_percent": 0,
-                    "contribution": 0,
+                    "contribution": None,
                     "report_period": ""
                 }
                 
@@ -879,8 +1134,11 @@ def fetch_fund_portfolio_fallback(fund_code):
                             item["change_percent"] = round((current - prev_close) / prev_close * 100, 2)
                 
                 portfolio.append(item)
-                
-        return portfolio
+
+            return {
+                "holdings": portfolio,
+                "meta": build_portfolio_meta(portfolio, report_period="", source="fallback")
+            }
 
     except Exception as e:
         print(f"降级获取持仓失败 {fund_code}: {e}")
@@ -1013,49 +1271,49 @@ def handle_settings():
 def get_funds():
     """获取所有自选基金的实时数据 (并发优化版)"""
     results = []
-    
-    # 使用线程池并发获取数据
+
+    fast_mode = request.args.get('fast', '0').lower() in ('1', 'true')
     current_time = time.time()
-    
+
     with lock:
-        # 复制列表，避免迭代时修改
         current_watchlist = list(fund_watchlist)
-    
-    # 1. 分离缓存命中和未命中的代码
+
     codes_to_fetch = []
-    # 用于存储最终结果的临时字典，确保按 watchlist 顺序返回
+    codes_to_refresh = []
     temp_results = {}
-    
+
     for code in current_watchlist:
         cache_item = fund_cache.get(code)
         if cache_item and (current_time - cache_item['timestamp'] < CACHE_TTL_SECONDS):
             temp_results[code] = cache_item
+        elif fast_mode and cache_item and (current_time - cache_item['timestamp'] < FUND_STALE_TTL_SECONDS):
+            # 快速模式：优先返回可接受的过期缓存
+            stale_item = dict(cache_item)
+            if "(缓存)" not in stale_item.get('source', ''):
+                stale_item['source'] = f"{stale_item.get('source', '')}(缓存)"
+            temp_results[code] = stale_item
+            codes_to_refresh.append(code)
         else:
             codes_to_fetch.append(code)
-            
-    # 2. 并发抓取未命中的数据
+
+    # 非快速模式或无可用缓存时：并发抓取
     if codes_to_fetch:
         with ThreadPoolExecutor(max_workers=MAX_FETCH_WORKERS) as executor:
-            # map 会按照输入顺序返回结果
             fetched_data_list = list(executor.map(fetch_fund_data, codes_to_fetch))
-            
-        # 3. 处理抓取结果
-        with lock: # 保护缓存写入
+
+        with lock:
             for i, data in enumerate(fetched_data_list):
                 code = codes_to_fetch[i]
                 if data:
                     fund_cache[code] = data
                     temp_results[code] = data
                 else:
-                    # 抓取失败，尝试使用过期缓存
                     old_cache = fund_cache.get(code)
                     if old_cache:
-                        # 标记过期
                         if "(过期)" not in old_cache.get('source', ''):
-                             old_cache['source'] = f"{old_cache.get('source', '')}(过期)"
+                            old_cache['source'] = f"{old_cache.get('source', '')}(过期)"
                         temp_results[code] = old_cache
                     else:
-                        # 完全失败
                         temp_results[code] = {
                             "code": code,
                             "name": "加载失败",
@@ -1065,14 +1323,15 @@ def get_funds():
                             "source": "Error"
                         }
 
-    # 4. 按顺序组装最终结果
+    if fast_mode and codes_to_refresh:
+        refresh_fund_cache_async(codes_to_refresh)
+
     results = [temp_results.get(code) for code in current_watchlist if temp_results.get(code)]
-    
+
     return jsonify({"success": True, "data": results})
 
 
 
-@app.route('/api/funds/<fund_code>/portfolio')
 @app.route('/api/funds/<fund_code>/portfolio')
 def get_fund_portfolio(fund_code):
     """获取基金持仓详情"""
@@ -1130,83 +1389,53 @@ def get_holdings():
     """
     获取持仓数据，并结合实时净值计算盈亏
     """
+    fast_mode = request.args.get('fast', '0').lower() in ('1', 'true')
+    force_refresh = request.args.get('refresh', 'false').lower() in ('1', 'true')
+    now_ts = time.time()
+
     with lock:
         holdings = list(fund_holdings)
+        cached_response = holdings_cache.get("response")
+        cached_ts = holdings_cache.get("timestamp", 0)
+
+    if fast_mode and not force_refresh and cached_response:
+        if now_ts - cached_ts < HOLDINGS_CACHE_TTL_SECONDS:
+            return jsonify(cached_response)
+        if now_ts - cached_ts < HOLDINGS_STALE_TTL_SECONDS:
+            refresh_holdings_cache_async(holdings)
+            stale_response = dict(cached_response)
+            stale_response["stale"] = True
+            return jsonify(stale_response)
     
     if not holdings:
-        return jsonify({
+        response = {
             "success": True,
             "data": [],
             "summary": {"total_cost": 0, "total_value": 0, "total_profit": 0, "total_profit_rate": 0, "count": 0},
             "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        })
+        }
+        with lock:
+            holdings_cache["timestamp"] = now_ts
+            holdings_cache["response"] = response
+        return jsonify(response)
     
-    # 获取所有持仓基金的实时数据
     codes = [h['code'] for h in holdings]
-    
-    # 并发获取实时数据
+
     with ThreadPoolExecutor(max_workers=MAX_FETCH_WORKERS) as executor:
         fund_data_list = list(executor.map(fetch_fund_data, codes))
-    
-    # 合并数据并计算盈亏
-    results = []
-    total_cost = 0
-    total_value = 0
-    
-    for i, holding in enumerate(holdings):
-        fund_data = fund_data_list[i]
-        
-        cost_price = holding.get('cost_price', 0)
-        shares = holding.get('shares', 0)
-        cost = cost_price * shares
-        total_cost += cost
-        
-        # 实时数据
-        current_price = fund_data['price'] if fund_data else 0
-        change = fund_data['change'] if fund_data else 0
-        time_str = fund_data.get('time_str', '--') if fund_data else '--'
-        source = fund_data.get('source', '--') if fund_data else '--'
-        
-        # 计算盈亏
-        market_value = current_price * shares if current_price > 0 else 0
-        total_value += market_value
-        
-        profit_amount = market_value - cost if current_price > 0 else 0
-        profit_rate = ((current_price - cost_price) / cost_price * 100) if cost_price > 0 and current_price > 0 else 0
-        
-        results.append({
-            "code": holding['code'],
-            "name": fund_data['name'] if fund_data else holding.get('name', f'基金{holding["code"]}'),
-            "cost_price": round(cost_price, 4),
-            "shares": round(shares, 2),
-            "current_price": round(current_price, 4) if current_price else 0,
-            "change": round(change, 2),
-            "profit_rate": round(profit_rate, 2),
-            "profit_amount": round(profit_amount, 2),
-            "market_value": round(market_value, 2),
-            "cost": round(cost, 2),
-            "time_str": time_str,
-            "source": source,
-            "note": holding.get('note', ''),
-            "data_available": fund_data is not None
-        })
-    
-    # 计算汇总
-    total_profit = total_value - total_cost
-    total_profit_rate = (total_profit / total_cost * 100) if total_cost > 0 else 0
-    
-    return jsonify({
-        "success": True,
-        "data": results,
-        "summary": {
-            "total_cost": round(total_cost, 2),
-            "total_value": round(total_value, 2),
-            "total_profit": round(total_profit, 2),
-            "total_profit_rate": round(total_profit_rate, 2),
-            "count": len(results)
-        },
-        "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    })
+
+    with lock:
+        cached_map = {code: fund_cache.get(code) for code in codes}
+        for i, data in enumerate(fund_data_list):
+            if data:
+                fund_cache[codes[i]] = data
+
+    response = build_holdings_response(holdings, fund_data_list, cached_map)
+    with lock:
+        holdings_cache["timestamp"] = now_ts
+        holdings_cache["response"] = response
+
+    return jsonify(response)
 
 
 @app.route('/api/holdings', methods=['POST'])

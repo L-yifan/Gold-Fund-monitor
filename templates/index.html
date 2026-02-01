@@ -79,7 +79,10 @@
         .list-enter-from,
         .list-leave-to {
             opacity: 0;
-            transform: translateX(20px);
+            transform: scale(0.9);
+        }
+        .list-move {
+            transition: transform 0.4s cubic-bezier(0.55, 0, 0.1, 1);
         }
         
         /* 顶部导航光效 */
@@ -114,7 +117,10 @@
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white min-h-screen">
+<body class="bg-[#0b0f19] text-gray-200 min-h-screen font-sans selection:bg-blue-500/30 selection:text-blue-200 overflow-x-hidden relative">
+    <!-- 全局背景装饰 (增强美观度) -->
+    <div class="fixed top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/5 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+    <div class="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-600/5 blur-[150px] rounded-full pointer-events-none -z-10"></div>
     
     {% raw %}
     <div id="app" v-cloak>
@@ -514,156 +520,207 @@
         </div>
 
         <!-- 基金视图 -->
-        <div v-if="currentView === 'fund'" class="pt-20 px-4 max-w-4xl mx-auto min-h-screen">
+        <div v-if="currentView === 'fund'" class="pt-14 max-w-7xl mx-auto min-h-screen">
             
-            <!-- 我的持仓卡片 -->
-            <div class="mb-6 bg-gradient-to-br from-blue-900/40 to-purple-900/30 rounded-2xl border border-blue-500/20 overflow-hidden">
-                <!-- 标题栏 -->
-                <div class="px-5 py-4 border-b border-blue-500/20 flex justify-between items-center">
-                    <div class="flex items-center gap-3">
-                        <h2 class="text-xl font-bold text-blue-300">我的持仓</h2>
-                        <span v-if="holdingsSummary.count > 0" class="text-xs bg-blue-600/30 text-blue-300 px-2 py-0.5 rounded-full">
-                            {{ holdingsSummary.count }} 只
-                        </span>
+
+            <div class="px-4 pt-4">
+                <!-- 我的持仓卡片 (重构布局与背景) -->
+                <div class="mb-8 bg-[#161b2a]/60 backdrop-blur-2xl rounded-3xl border border-white/5 shadow-2xl overflow-hidden">
+                    <!-- 标题栏：响应式换行处理 -->
+                    <div class="px-6 py-5 border-b border-white/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div class="flex items-center gap-4">
+
+                            <div>
+                                <h2 class="text-xl font-bold text-gray-100 tracking-tight">我的持仓</h2>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span v-if="holdingsSummary.count > 0" class="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider">
+                                        {{ holdingsSummary.count }} 只基金
+                                    </span>
+                                    <span class="text-[10px] text-gray-500 font-medium tracking-tight">{{ holdingsLastUpdate }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 操作区 -->
+                        <div class="flex items-center gap-2 self-end sm:self-auto px-1.5 py-1.5 rounded-2xl bg-black/30 border border-white/5 shadow-inner">
+                            <button @click="openAddHoldingModal()" 
+                                    class="flex items-center gap-2 text-[12px] bg-green-500/10 hover:bg-green-500/20 text-green-400 px-4 py-2 rounded-xl font-black transition-all border border-green-500/10 active:scale-95"
+                                    title="添加持仓">
+                                <span>+</span> 添加
+                            </button>
+                            <button @click="fetchHoldings" 
+                                    :disabled="isLoadingHoldings"
+                                    class="flex items-center gap-2 text-[12px] bg-white/5 hover:bg-white/10 text-gray-300 px-4 py-2 rounded-xl font-black transition-all border border-white/5 active:scale-95"
+                                    :class="{'opacity-50 cursor-not-allowed': isLoadingHoldings}"
+                                    title="刷新数据">
+                                <span :class="{'animate-spin': isLoadingHoldings}">🔄</span> 刷新
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-gray-500">{{ holdingsLastUpdate }}</span>
-                        <button @click="openAddHoldingModal()" 
-                                class="text-xs bg-green-600/20 hover:bg-green-600/40 text-green-300 px-3 py-1 rounded-lg transition-all"
-                                title="添加持仓">
-                            + 添加
-                        </button>
-                        <button @click="fetchHoldings" 
-                                :disabled="isLoadingHoldings"
-                                class="text-xs bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 px-3 py-1 rounded-lg transition-all"
-                                title="刷新数据">
-                            {{ isLoadingHoldings ? '加载中...' : '刷新' }}
-                        </button>
-                    </div>
-                </div>
                 
-                <!-- 汇总信息 -->
-                <div v-if="holdingsSummary.count > 0" class="px-5 py-4 grid grid-cols-2 sm:grid-cols-4 gap-4 border-b border-blue-500/10">
-                    <div class="text-center">
-                        <p class="text-xs text-gray-400 mb-1">资产成本</p>
-                        <p class="text-lg font-bold font-mono text-gray-200">{{ holdingsSummary.total_cost.toFixed(2) }}</p>
+                <!-- 汇总信息面板 (确保 Grid 独立) -->
+                <div v-if="holdingsSummary.count > 0" 
+                     class="px-6 py-6 grid grid-cols-2 lg:grid-cols-4 gap-6 bg-gradient-to-b from-transparent to-black/10 border-b border-white/5 relative overflow-hidden">
+                    <!-- 背景光晕 -->
+                    <div class="absolute -right-16 -top-16 w-32 h-32 bg-blue-500/10 blur-[60px] pointer-events-none rotate-45"></div>
+                    <div class="absolute -left-20 -bottom-20 w-40 h-40 bg-purple-500/5 blur-[80px] pointer-events-none"></div>
+
+                    <div class="flex flex-col justify-center px-2">
+                        <span class="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2 font-black">
+                            <span class="w-1.5 h-1.5 rounded-full bg-gray-600 shadow-[0_0_8px_rgba(75,85,99,0.4)]"></span>资产成本
+                        </span>
+                        <div class="flex items-baseline gap-1.5">
+                            <span class="text-2xl font-black font-mono text-gray-200 tracking-tighter">{{ holdingsSummary.total_cost.toFixed(0) }}</span>
+                            <span class="text-[10px] text-gray-600 font-bold font-mono">CNY</span>
+                        </div>
                     </div>
-                    <div class="text-center">
-                        <p class="text-xs text-gray-400 mb-1">当前市值</p>
-                        <p class="text-lg font-bold font-mono text-blue-300">{{ holdingsSummary.total_value.toFixed(2) }}</p>
+
+                    <div class="flex flex-col justify-center px-2 border-l border-white/[0.03]">
+                        <span class="flex items-center gap-2 text-[10px] uppercase tracking-[0.2em] text-gray-500 mb-2 font-black">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.4)]"></span>当前市值
+                        </span>
+                        <div class="flex items-baseline gap-1.5">
+                            <span class="text-2xl font-black font-mono text-blue-400 tracking-tighter shadow-blue-400/10">{{ holdingsSummary.total_value.toFixed(0) }}</span>
+                            <span class="text-[10px] text-blue-800 font-bold font-mono uppercase">CNY</span>
+                        </div>
                     </div>
-                    <div class="text-center">
-                        <p class="text-xs text-gray-400 mb-1">累计盈亏</p>
-                        <p class="text-lg font-bold font-mono" :class="holdingsSummary.total_profit >= 0 ? 'text-red-400' : 'text-green-400'">
-                            {{ holdingsSummary.total_profit >= 0 ? '+' : '' }}{{ holdingsSummary.total_profit.toFixed(2) }}
-                        </p>
+
+                    <!-- 累计盈亏 (带背景色块强调设计) -->
+                    <div class="flex flex-col p-4 rounded-2xl bg-black/40 border border-white/5 shadow-inner">
+                        <span class="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-2 font-black opacity-60">预期收益</span>
+                        <div class="flex items-baseline gap-1.5">
+                            <span class="text-3xl font-black font-mono leading-none tracking-tighter transition-all duration-500" 
+                                  :class="holdingsSummary.total_profit >= 0 ? 'text-red-500 drop-shadow-[0_0_12px_rgba(239,68,68,0.4)]' : 'text-green-500 drop-shadow-[0_0_12px_rgba(34,197,94,0.4)]'">
+                                {{ holdingsSummary.total_profit >= 0 ? '+' : '' }}{{ holdingsSummary.total_profit.toFixed(0) }}
+                            </span>
+                        </div>
                     </div>
-                    <div class="text-center">
-                        <p class="text-xs text-gray-400 mb-1">总收益率</p>
-                        <p class="text-xl font-bold font-mono" :class="holdingsSummary.total_profit_rate >= 0 ? 'text-red-400' : 'text-green-400'">
-                            {{ holdingsSummary.total_profit_rate >= 0 ? '+' : '' }}{{ holdingsSummary.total_profit_rate.toFixed(2) }}%
-                        </p>
+
+                    <!-- 总收益率 (强调设计) -->
+                    <div class="flex flex-col p-4 rounded-2xl bg-black/40 border border-white/5 ring-1 ring-inset transition-all"
+                         :class="holdingsSummary.total_profit_rate >= 0 ? 'ring-red-500/20' : 'ring-green-500/20'">
+                        <span class="text-[10px] uppercase tracking-[0.2em] text-gray-400 mb-2 font-black opacity-60">投资回报</span>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-3xl font-black font-mono leading-none tracking-tighter" 
+                                  :class="holdingsSummary.total_profit_rate >= 0 ? 'text-red-500' : 'text-green-500'">
+                                {{ holdingsSummary.total_profit_rate >= 0 ? '+' : '' }}{{ holdingsSummary.total_profit_rate.toFixed(2) }}<span class="text-sm ml-0.5 opacity-60">%</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- 持仓列表 -->
-                <div class="px-5 py-4">
+                <div class="px-6 py-8">
                     <div v-if="isLoadingHoldings" class="text-center py-8 text-gray-500">
                         <span class="animate-spin inline-block mr-2 text-2xl">⏳</span>
                         <p class="text-sm">正在加载持仓数据...</p>
                     </div>
-                    <div v-else-if="holdings.length === 0" class="text-center py-8 text-gray-500">
-                        <div class="text-4xl mb-3 opacity-30">📋</div>
-                        <p class="text-sm">暂无持仓数据</p>
-                        <p class="text-xs mt-2 opacity-60">点击上方「添加」按钮录入您的持仓</p>
+                    <div v-else-if="holdings.length === 0" class="group relative flex flex-col items-center justify-center py-16 px-4 bg-white/[0.01] border-2 border-dashed border-white/5 rounded-3xl mx-5 transition-all hover:bg-white/[0.02] hover:border-blue-500/20">
+                        <div class="w-16 h-16 bg-blue-500/10 rounded-full flex items-center justify-center mb-4 ring-8 ring-blue-500/[0.02] group-hover:scale-110 transition-transform duration-500">
+                            <span class="text-3xl">📥</span>
+                        </div>
+                        <h3 class="text-gray-300 font-bold text-base mb-1">开始管理您的投资</h3>
+                        <p class="text-gray-600 text-[11px] mb-6 text-center max-w-[200px] leading-relaxed">
+                            录入您的持仓成本，系统将自动计算盈亏，助您做出明智决策。
+                        </p>
+                        <button @click="openAddHoldingModal()" 
+                                class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-black px-6 py-2.5 rounded-full shadow-lg shadow-blue-600/20 transition-all active:scale-95 flex items-center gap-2">
+                            <span>+ 录入第一笔持仓</span>
+                        </button>
+                        
+                        <!-- 装饰元素 -->
+                        <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+                            <div class="absolute -right-4 -bottom-4 text-4xl transform rotate-12 filter grayscale opacity-20">📊</div>
+                        </div>
                     </div>
-                    <div v-else class="space-y-3">
+                    <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
                         <div v-for="h in holdings" :key="h.code" 
                              @click="toggleHoldings(h)"
-                             class="bg-gray-800/80 rounded-xl p-4 border border-blue-500/10 hover:border-blue-500/40 transition-all group relative overflow-hidden cursor-pointer">
+                             class="group relative bg-[#1c2230]/60 backdrop-blur-xl rounded-2xl border border-white/5 hover:border-blue-500/30 hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] transition-all duration-300 cursor-pointer overflow-hidden flex flex-col h-[180px]">
                             
-                            <!-- 持仓详情 (三段式终端布局) -->
-                            <div class="space-y-4">
-                                <!-- 第一段：基金标题 -->
-                                <div class="flex justify-between items-start">
-                                    <div class="flex items-center gap-2 overflow-hidden">
-                                        <h4 class="font-bold text-white truncate text-base leading-tight">{{ h.name }}</h4>
-                                        <span class="text-xs bg-gray-700 text-blue-200/90 px-1.5 py-0.5 rounded font-mono shrink-0">{{ h.code }}</span>
+                            <!-- 盈亏状态侧边条 -->
+                            <div class="absolute left-0 top-0 bottom-0 w-1"
+                                 :class="h.profit_rate >= 0 ? 'bg-gradient-to-b from-red-500/80 to-red-500/20' : 'bg-gradient-to-b from-green-500/80 to-green-500/20'">
+                            </div>
+
+                            <div class="p-4 flex-1 flex flex-col justify-between">
+                                <!-- 顶部：名称与代码 -->
+                                <div class="flex justify-between items-start gap-2">
+                                    <div class="min-w-0">
+                                        <h4 class="font-black text-gray-100 truncate text-[13px] tracking-tight mb-0.5 group-hover:text-blue-300 transition-colors">{{ h.name }}</h4>
+                                        <div class="flex items-center gap-1.5">
+                                            <span class="text-[10px] bg-white/5 text-gray-500 px-1.5 py-0.5 rounded font-mono border border-white/5 uppercase">{{ h.code }}</span>
+                                            <span v-if="!h.data_available" class="text-[9px] text-yellow-500 border border-yellow-500/20 px-1 rounded animate-pulse">OFFLINE</span>
+                                        </div>
                                     </div>
-                                    <div v-if="!h.data_available" class="text-xs bg-yellow-500/10 text-yellow-500 px-1.5 py-0.5 rounded border border-yellow-500/20 shrink-0">
-                                        离线更新
+                                    <!-- 今日涨跌 -->
+                                    <div class="shrink-0 text-right">
+                                        <div class="px-2 py-1 rounded-lg text-[11px] font-black font-mono shadow-sm"
+                                             :class="h.change >= 0 ? 'text-red-400 bg-red-400/5 ring-1 ring-red-400/20' : 'text-green-400 bg-green-400/5 ring-1 ring-green-400/20'">
+                                            {{ h.change >= 0 ? '+' : '' }}{{ h.change }}%
+                                        </div>
                                     </div>
                                 </div>
 
-                                <!-- 第二段：核心盈亏数据 -->
-                                <div class="flex items-end justify-between">
+                                <!-- 中部：盈亏核心数据 -->
+                                <div class="flex items-center justify-between py-2">
                                     <div class="flex flex-col">
-                                        <span class="text-xs text-gray-400 mb-1 font-medium italic">持仓累计盈亏</span>
-                                        <div class="flex items-baseline gap-2">
-                                            <span class="text-3xl font-bold font-mono tracking-tighter"
+                                        <div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-0.5 opacity-60">持有收益率</div>
+                                        <div class="flex items-baseline gap-1.5">
+                                            <span class="text-2xl font-black font-mono tracking-tighter"
                                                   :class="h.profit_rate >= 0 ? 'text-red-500' : 'text-green-500'">
-                                                {{ (h.profit_rate >= 0 ? '+' : '') + h.profit_rate.toFixed(1) }}<span class="text-sm ml-0.5">%</span>
-                                            </span>
-                                            <span class="text-sm font-bold font-mono opacity-80"
-                                                  :class="h.profit_amount >= 0 ? 'text-red-400' : 'text-green-400'">
-                                                ({{ (h.profit_amount >= 0 ? '+' : '') + h.profit_amount.toFixed(0) }}元)
+                                                {{ (h.profit_rate >= 0 ? '+' : '') + h.profit_rate.toFixed(2) }}<span class="text-xs ml-0.5">%</span>
                                             </span>
                                         </div>
                                     </div>
-                                    <div class="flex flex-col items-end text-right">
-                                        <span class="text-xs text-gray-400 mb-1 font-medium tracking-tight">今日变化</span>
-                                        <span class="text-lg font-bold font-mono px-2 py-0.5 rounded"
-                                              :class="h.change >= 0 ? 'text-red-400 bg-red-900/20' : 'text-green-400 bg-green-900/20'">
-                                            {{ h.change >= 0 ? '+' : '' }}{{ h.change }}%
+                                    <div class="flex flex-col items-end">
+                                        <div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-0.5 opacity-60 text-right">预估盈亏</div>
+                                        <span class="text-lg font-black font-mono"
+                                              :class="h.profit_amount >= 0 ? 'text-red-400' : 'text-green-400'">
+                                            {{ (h.profit_amount >= 0 ? '+' : '') + h.profit_amount.toFixed(0) }}
                                         </span>
                                     </div>
                                 </div>
 
-                                <!-- 第三段：资产明细 -->
-                                <div class="grid grid-cols-3 gap-2 pt-3 border-t border-gray-700/30 text-gray-400">
+                                <!-- 底部：资产明细 -->
+                                <div class="grid grid-cols-3 gap-2 pt-3 border-t border-white/[0.03] text-[10px]">
                                     <div class="flex flex-col">
-                                        <span class="text-xs text-gray-400 font-bold tracking-tighter uppercase opacity-80">持有份数</span>
-                                        <span class="text-xs font-mono">{{ h.shares }}</span>
+                                        <span class="text-gray-600 font-medium mb-0.5">持份</span>
+                                        <span class="font-bold font-mono text-gray-400">{{ h.shares }}</span>
                                     </div>
                                     <div class="flex flex-col">
-                                        <span class="text-xs text-gray-400 font-bold tracking-tighter uppercase opacity-80">持仓成本</span>
-                                        <span class="text-xs font-mono">{{ h.cost_price }}</span>
+                                        <span class="text-gray-600 font-medium mb-0.5">成本价</span>
+                                        <span class="font-bold font-mono text-gray-400">{{ h.cost_price }}</span>
                                     </div>
                                     <div class="flex flex-col items-end">
-                                        <span class="text-xs text-gray-400 font-bold tracking-tighter uppercase opacity-80">当前市值</span>
-                                        <span class="text-sm text-blue-400 font-bold font-mono">{{ h.market_value.toFixed(1) }}</span>
+                                        <span class="text-gray-600 font-medium mb-0.5">当前市值</span>
+                                        <span class="font-black font-mono text-blue-400/90 text-[11px]">{{ h.market_value.toFixed(0) }}</span>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- 底部悬浮动作条 (Slide-up) -->
-                            <div class="absolute bottom-0 left-0 right-0 h-12 bg-gray-900/95 backdrop-blur-md border-t border-blue-500/30 flex items-stretch translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-10">
+                            <!-- 底部精简操作条 (Slide-up) -->
+                            <div class="absolute bottom-0 left-0 right-0 h-9 bg-gray-900/95 backdrop-blur-md border-t border-white/5 flex items-stretch translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-10">
                                 <!-- 详情 -->
                                 <button @click.stop="toggleHoldings(h)" 
-                                        class="flex-1 flex items-center justify-center gap-2 hover:bg-blue-500/10 transition-all text-gray-400 hover:text-blue-400 border-r border-gray-700/50 group/btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 transition-transform group-hover/btn:scale-110">
+                                        class="flex-1 flex items-center justify-center gap-2 hover:bg-blue-500/10 transition-all text-gray-400 hover:text-blue-400 border-r border-white/5 group/btn">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
                                     </svg>
-                                    <span class="text-xs font-bold">重仓股</span>
+                                    <span class="text-[10px] font-bold tracking-wider">重仓股</span>
                                 </button>
                                 
-                                <!-- 编辑 -->
-                                <button @click.stop="openEditHoldingModal(h)" 
-                                        class="flex-1 flex items-center justify-center gap-2 hover:bg-yellow-500/10 transition-all text-gray-400 hover:text-yellow-400 border-r border-gray-700/50 group/btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 transition-transform group-hover/btn:rotate-12">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                                    </svg>
-                                    <span class="text-xs font-bold">编辑</span>
-                                </button>
-
-                                <!-- 删除 -->
-                                <button @click.stop="deleteHolding(h.code)" 
-                                        class="flex-1 flex items-center justify-center gap-2 hover:bg-red-500/10 transition-all text-gray-500 hover:text-red-400 group/btn">
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 transition-transform group-hover/btn:scale-110">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                                    </svg>
-                                    <span class="text-xs font-bold">删除</span>
-                                </button>
+                                <!-- 操作 -->
+                                <div class="flex-[1.5] flex items-stretch">
+                                    <button @click.stop="openEditHoldingModal(h)" 
+                                            class="flex-1 flex items-center justify-center gap-1.5 hover:bg-yellow-500/10 transition-all text-gray-500 hover:text-yellow-500 border-r border-white/5 group/btn">
+                                        <span class="text-[10px] font-bold">编辑</span>
+                                    </button>
+                                    <button @click.stop="deleteHolding(h.code)" 
+                                            class="flex-1 flex items-center justify-center gap-1.5 hover:bg-red-500/10 transition-all text-gray-600 hover:text-red-400 group/btn">
+                                        <span class="text-[10px] font-bold">删除</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -671,124 +728,153 @@
                 </div>
             </div>
 
-            <!-- 搜索添加栏 -->
-            <div class="sticky top-20 z-40 bg-gray-900/90 backdrop-blur pb-4 pt-2">
-                <div class="relative group">
-                    <input type="text" v-model="newFundCode" @keyup.enter="addFund"
-                           placeholder="输入6位基金代码，按回车添加到自选..."
-                           class="w-full bg-gray-800 border-2 border-gray-700 rounded-xl px-5 py-4 pl-12 text-lg focus:outline-none focus:border-blue-500 focus:shadow-[0_0_20px_rgba(59,130,246,0.2)] transition-all placeholder-gray-500">
-                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-xl group-focus-within:text-blue-400 transition-colors">🔍</span>
-                    <button @click="addFund" 
-                            :disabled="isAddingFund"
-                            class="absolute right-3 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-all">
-                        {{ isAddingFund ? '添加中...' : '添加自选' }}
-                    </button>
-                </div>
-            </div>
+            <div class="px-4 pt-4">
+                <!-- 自选基金列表标题 -->
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6 px-1">
+                    <div class="flex items-center gap-3">
+                        <h3 class="text-xl font-bold text-gray-200">自选基金</h3>
+                        <span v-if="funds.length > 0" class="text-xs bg-gray-800 text-gray-400 px-2 py-0.5 rounded-full border border-gray-700">
+                            {{ filteredFunds.length }}/{{ funds.length }}
+                        </span>
+                    </div>
 
-            <!-- 自选基金列表标题 -->
-            <div class="flex items-center gap-2 mb-3 px-1">
-                <span class="text-lg">👀</span>
-                <h3 class="text-lg font-bold text-gray-400">自选基金</h3>
-                <span v-if="funds.length > 0" class="text-xs text-gray-600">({{ funds.length }})</span>
-            </div>
-
-            <!-- 基金列表 -->
-            <div class="space-y-3 pb-24">
-                <div v-if="funds.length === 0" class="text-center py-20 text-gray-500">
-                    <div class="text-6xl mb-4 opacity-20">📊</div>
-                    <p>暂无自选基金</p>
-                    <p class="text-sm opacity-60 mt-2">输入代码添加关注</p>
-                </div>
-
-                <transition-group name="list" tag="div" class="space-y-3">
-                    <div v-for="fund in funds" :key="fund.code" 
-                         @click="toggleHoldings(fund)"
-                         class="bg-gray-800 rounded-xl p-4 pb-4 border border-gray-700/50 hover:border-blue-500/40 transition-all hover:bg-gray-750 group relative overflow-hidden cursor-pointer">
+                    <div class="flex flex-wrap items-center gap-3">
+                        <!-- 添加基金 (集成到工具栏) -->
+                        <div class="relative group flex items-center bg-gray-800 rounded-lg border border-gray-700 p-0.5 focus-within:border-blue-500/50 focus-within:ring-1 focus-within:ring-blue-500/50 transition-all shadow-sm">
+                            <input type="text" v-model="newFundCode" @keyup.enter="addFund"
+                                   placeholder="添加基金代码" 
+                                   class="w-28 focus:w-36 bg-transparent border-none text-xs text-center text-gray-200 px-2 py-1.5 focus:outline-none placeholder-gray-500 transition-all font-mono">
+                            <button @click="addFund" :disabled="isAddingFund" 
+                                    class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded-md text-xs font-bold transition-all disabled:opacity-50 active:scale-95 shadow-sm border border-white/10"
+                                    title="添加">
+                                <span v-if="isAddingFund" class="animate-spin inline-block">⏳</span>
+                                <span v-else>+</span>
+                            </button>
+                        </div>
                         
-                        <!-- 核心信息区 (三段式) -->
-                        <div class="space-y-3">
-                            <!-- 第一段：头部标识 -->
-                            <div class="flex justify-between items-start">
-                                <div class="flex items-center gap-2 overflow-hidden">
-                                    <h3 class="font-bold text-white truncate">{{ fund.name }}</h3>
-                                    <span class="text-xs bg-gray-700/80 text-gray-300 px-1.5 py-0.5 rounded font-mono shrink-0">{{ fund.code }}</span>
-                                </div>
-                                <div v-if="isFundInHoldings(fund.code)" 
-                                     class="flex items-center gap-1 text-xs bg-blue-500/10 text-blue-300 px-2 py-0.5 rounded border border-blue-500/20 shrink-0 uppercase tracking-tighter">
-                                    <span class="relative flex h-1.5 w-1.5">
-                                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
-                                    </span>
-                                    持仓中
-                                </div>
-                            </div>
+                        <!-- 排序控制 -->
+                        <div class="flex bg-gray-800 p-1 rounded-lg border border-gray-700">
+                            <button @click="fundSortMode = 'default'" 
+                                    class="px-3 py-1 text-xs rounded-md transition-all font-medium"
+                                    :class="fundSortMode === 'default' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'">
+                                默认
+                            </button>
+                            <button @click="fundSortMode = 'gain'" 
+                                    class="px-3 py-1 text-xs rounded-md transition-all font-medium"
+                                    :class="fundSortMode === 'gain' ? 'bg-red-600/80 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'">
+                                涨幅
+                            </button>
+                            <button @click="fundSortMode = 'loss'" 
+                                    class="px-3 py-1 text-xs rounded-md transition-all font-medium"
+                                    :class="fundSortMode === 'loss' ? 'bg-green-600/80 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'">
+                                跌幅
+                            </button>
+                        </div>
 
-                            <!-- 第二段：关键指标 -->
-                            <div class="flex items-end justify-between">
-                                <div class="flex flex-col">
-                                    <span class="text-xs text-gray-400 mb-1 font-medium italic">估算涨跌 (当日)</span>
+                        <!-- 实时过滤器 -->
+                        <div v-if="funds.length > 0" class="relative group">
+                            <input type="text" v-model="fundFilterText" placeholder="搜索基金名/代码..." 
+                                   class="bg-gray-800/80 border border-gray-700 rounded-lg px-3 py-1.5 pl-8 text-sm focus:outline-none focus:border-blue-500/50 transition-all w-full sm:w-56 placeholder-gray-600 group-hover:bg-gray-800">
+                            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-600 text-xs transition-colors group-focus-within:text-blue-400">🔍</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 基金列表 (高密度响应式网格) -->
+                <div class="pb-24">
+                    <div v-if="funds.length === 0" class="text-center py-20 text-gray-500">
+                        <div class="text-6xl mb-4 opacity-20">📡</div>
+                        <p>暂无自选，请输入代码添加</p>
+                    </div>
+
+                    <transition-group name="list" tag="div" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
+                        <div v-for="fund in filteredFunds" :key="fund.code" 
+                             @click="toggleHoldings(fund)"
+                             class="bg-gray-800 rounded-xl p-3 border transition-all hover:bg-gray-750 hover:border-blue-500/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.2)] hover:scale-[1.02] group relative overflow-hidden cursor-pointer flex flex-col h-full"
+                             :class="[
+                                fund.change > 0 ? 'border-red-500/10 bg-red-500/[0.02]' : (fund.change < 0 ? 'border-green-500/10 bg-green-500/[0.02]' : 'border-gray-700/50')
+                             ]">
+                            
+                            <!-- S013: 核心信息区 (高密度布局) -->
+                            <div class="space-y-2">
+                                <!-- 第一段：头部标识 (更紧凑) -->
+                                <div class="flex justify-between items-start gap-1">
+                                    <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                                        <h3 class="font-bold text-sm text-white truncate leading-tight" :title="fund.name">{{ fund.name }}</h3>
+                                        <span class="text-[10px] bg-gray-900/50 text-gray-500 px-1 py-0.5 rounded font-mono shrink-0">{{ fund.code }}</span>
+                                    </div>
+                                    <!-- 持仓标签 -->
+                                    <div v-if="isFundInHoldings(fund.code)" 
+                                         class="shrink-0 flex items-center gap-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded text-[10px] font-bold shadow-[0_0_8px_rgba(59,130,246,0.15)] backdrop-blur-sm">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-3 h-3">
+                                            <path fill-rule="evenodd" d="M10 2c-1.716 0-3.408.106-5.07.31C3.806 2.45 3 3.414 3 4.517V17.25a.75.75 0 001.075.676L10 15.082l5.925 2.844A.75.75 0 0017 17.25V4.517c0-1.103-.806-2.068-1.93-2.207A41.403 41.403 0 0010 2z" clip-rule="evenodd" />
+                                        </svg>
+                                        持仓
+                                    </div>
+                                </div>
+
+                                <!-- 第二段：关键指标 (居中强调涨跌) -->
+                                <div class="flex items-center justify-between">
                                     <div class="flex items-baseline gap-1">
-                                        <span class="text-3xl font-bold font-mono tracking-tighter transition-colors duration-300"
+                                        <span class="text-2xl font-black font-mono tracking-tighter transition-colors duration-300"
                                               :class="fund.change > 0 ? 'text-red-500' : (fund.change < 0 ? 'text-green-500' : 'text-gray-400')">
                                             {{ (fund.change > 0 ? '+' : '') + fund.change }}%
                                         </span>
-                                        <div v-if="fund.animating" class="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping"></div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-[10px] text-gray-500 font-mono uppercase leading-none mb-0.5">净值</p>
+                                        <span class="text-sm font-bold text-gray-300 font-mono">{{ fund.price }}</span>
                                     </div>
                                 </div>
-                                <div class="flex flex-col items-end text-right">
-                                    <span class="text-xs text-gray-400 mb-1 font-mono uppercase tracking-wider">最新净值</span>
-                                    <span class="text-lg font-bold text-gray-200 font-mono">{{ fund.price }}</span>
+
+                                <!-- 第三段：状态脚部 (仅显示核心时间) -->
+                                <div class="flex justify-between items-center opacity-40 group-hover:opacity-80 transition-opacity">
+                                    <span class="text-[10px] text-gray-500 font-mono">{{ fund.time_str }}</span>
+                                    <div v-if="fund.animating" class="w-1 h-1 rounded-full bg-blue-400 animate-ping"></div>
                                 </div>
                             </div>
 
-                            <!-- 第三段：状态脚部 -->
-                            <div class="flex justify-between items-center pt-2 border-t border-gray-700/30">
-                                <span class="text-xs text-gray-400 font-mono">{{ fund.time_str }}</span>
-                                <span v-if="fund.source" class="text-xs text-gray-500">Source: {{ fund.source }}</span>
-                            </div>
-                        </div>
-
                         <!-- 底部悬浮动作条 (Slide-up) -->
-                        <div class="absolute bottom-0 left-0 right-0 h-12 bg-gray-900/95 backdrop-blur-md border-t border-blue-500/30 flex items-stretch translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-10">
+                        <div class="absolute bottom-0 left-0 right-0 h-11 lg:h-9 bg-gray-900/98 backdrop-blur-md border-t border-blue-500/30 flex items-stretch translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out z-10">
                             <!-- 展开重仓股 -->
                             <button @click.stop="toggleHoldings(fund)" 
-                                    class="flex-1 flex items-center justify-center gap-2 hover:bg-blue-500/10 transition-colors text-gray-400 hover:text-blue-400 border-r border-gray-700/50">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                    class="flex-1 flex items-center justify-center gap-1.5 hover:bg-blue-500/10 transition-colors text-gray-400 hover:text-blue-400 border-r border-gray-700/50 group/btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 transition-transform group-hover/btn:scale-110">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
                                 </svg>
-                                <span class="text-xs font-bold">重仓股</span>
+                                <span class="text-[10px] lg:text-[11px] font-bold">重仓股</span>
                             </button>
                             
                             <!-- 加持仓 -->
                             <button @click.stop="addFundToHoldings(fund)" 
-                                    class="flex-1 flex items-center justify-center gap-2 hover:bg-green-500/10 transition-colors text-gray-400 hover:text-green-400 border-r border-gray-700/50">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                    class="flex-1 flex items-center justify-center gap-1.5 hover:bg-green-500/10 transition-colors text-gray-400 hover:text-green-400 border-r border-gray-700/50 group/btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 transition-transform group-hover/btn:scale-110">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                <span class="text-xs font-bold">入持仓</span>
+                                <span class="text-[10px] lg:text-[11px] font-bold">入持仓</span>
                             </button>
 
                             <!-- 移除 -->
                             <button @click.stop="deleteFund(fund.code)" 
-                                    class="flex-1 flex items-center justify-center gap-2 hover:bg-red-500/10 transition-colors text-gray-500 hover:text-red-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                                    class="flex-1 flex items-center justify-center gap-1.5 hover:bg-red-500/10 transition-colors text-gray-500 hover:text-red-400 group/btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5 transition-transform group-hover/btn:scale-110">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
-                                <span class="text-xs font-bold">移除</span>
+                                <span class="text-[10px] lg:text-[11px] font-bold">移除</span>
                             </button>
                         </div>
                     </div>
                 </transition-group>
-            </div>
-            
-            <!-- 底部提示 -->
-            <div v-if="funds.length > 0" class="fixed bottom-6 left-0 right-0 text-center pointer-events-none">
-                <span class="bg-gray-900/90 backdrop-blur-md px-4 py-1.5 rounded-full text-xs text-gray-400 border border-gray-800 shadow-lg font-medium">
-                    数据约每 30 秒自动刷新 (仅交易时段)
-                </span>
+
+                <!-- 底部提示 (现在随列表滚动) -->
+                <div v-if="funds.length > 0" class="mt-8 mb-12 text-center">
+                    <span class="bg-gray-800/50 px-4 py-1.5 rounded-full text-xs text-gray-500 border border-gray-700/50 font-medium">
+                        实时估值，约 3 秒刷新
+                    </span>
+                </div>
             </div>
         </div>
+    </div>
 
 
         <!-- 自定义模态框 (Modal) -->
@@ -947,19 +1033,38 @@
                                     <span class="text-xs bg-blue-500/10 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/20 scale-90">实时估算</span>
                                 </div>
                                 <div class="text-4xl font-bold font-mono tracking-tighter" 
-                                     :class="getTotalContribution(portfolioDrawer.holdings) >= 0 ? 'text-red-400' : 'text-green-400'">
-                                    {{ getTotalContribution(portfolioDrawer.holdings) >= 0 ? '+' : '' }}{{ getTotalContribution(portfolioDrawer.holdings).toFixed(3) }}<span class="text-lg ml-0.5">%</span>
+                                     :class="portfolioContribution.available ? (portfolioContribution.value >= 0 ? 'text-red-400' : 'text-green-400') : 'text-gray-400'">
+                                    <template v-if="portfolioContribution.available">
+                                        {{ portfolioContribution.value >= 0 ? '+' : '' }}{{ portfolioContribution.value.toFixed(3) }}<span class="text-lg ml-0.5">%</span>
+                                    </template>
+                                    <template v-else>--</template>
                                 </div>
                                 <div class="mt-3 text-xs text-gray-400 flex items-center gap-1 font-medium">
                                     <span class="opacity-70">数据截止:</span>
-                                    <span class="text-gray-300 italic">{{ portfolioDrawer.holdings[0]?.report_period || '--' }} 季度报告期</span>
+                                    <span class="text-gray-300 italic">{{ portfolioDrawer.meta.report_period || portfolioDrawer.holdings[0]?.report_period || '--' }} 季度报告期</span>
                                 </div>
+                                <div class="mt-2 text-xs text-gray-400 flex items-center justify-between font-medium">
+                                    <span>权重覆盖: <span class="text-gray-200 font-mono">{{ portfolioDrawer.meta.weight_coverage !== undefined ? portfolioDrawer.meta.weight_coverage.toFixed(2) + '%' : '--' }}</span></span>
+                                    <span>置信度: <span class="text-gray-200">{{ portfolioDrawer.meta.confidence_label || '--' }}</span></span>
+                                </div>
+                                <p v-if="portfolioDrawer.meta.estimate_mode === 'equal_weight'" class="mt-2 text-xs text-yellow-300/80">
+                                    已使用等权估算，结果仅供参考
+                                </p>
+                                <p v-else-if="!portfolioDrawer.meta.contribution_available" class="mt-2 text-xs text-yellow-300/80">
+                                    权重占比缺失，贡献暂不可估算
+                                </p>
+                                <p v-if="portfolioDrawer.meta.estimate_mode === 'cached_stale'" class="mt-1 text-xs text-orange-300/80">
+                                    使用过期缓存权重估算，请注意时效
+                                </p>
+                                <p v-if="portfolioDrawer.meta.parse_error" class="mt-1 text-xs text-orange-300/80">
+                                    解析提示：{{ portfolioDrawer.meta.parse_error }}
+                                </p>
                             </div>
 
                             <!-- 股票列表 -->
                             <div class="space-y-3 pb-8">
                                 <div v-for="(stock, idx) in portfolioDrawer.holdings" :key="stock.code" 
-                                     class="bg-gray-750/40 rounded-xl p-4 border border-gray-700/50 hover:bg-gray-700/60 hover:border-gray-600/50 transition-all group">
+                                     class="bg-gray-750/40 rounded-xl p-4 border border-gray-700/50 hover:bg-gray-700/60 hover:border-blue-500/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)] transition-all group">
                                     <div class="flex justify-between items-start mb-2">
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-2">
@@ -972,8 +1077,9 @@
                                             <div class="text-lg font-bold font-mono leading-none" :class="stock.change_percent >= 0 ? 'text-red-400' : 'text-green-400'">
                                                 {{ stock.change_percent >= 0 ? '+' : '' }}{{ stock.change_percent.toFixed(2) }}%
                                             </div>
-                                            <div class="text-[11px] font-bold font-mono mt-1 px-1.5 py-0.5 rounded inline-block" :class="stock.contribution >= 0 ? 'bg-red-900/10 text-red-400/80' : 'bg-green-900/10 text-green-400/80'">
-                                                贡献: {{ (stock.contribution || 0).toFixed(3) }}%
+                                            <div class="text-[11px] font-bold font-mono mt-1 px-1.5 py-0.5 rounded inline-block" 
+                                                 :class="typeof stock.contribution === 'number' ? (stock.contribution >= 0 ? 'bg-red-900/10 text-red-400/80' : 'bg-green-900/10 text-green-400/80') : 'bg-gray-700/40 text-gray-400'">
+                                                贡献: {{ typeof stock.contribution === 'number' ? (stock.contribution.toFixed(3) + '%') : '--' }}
                                             </div>
                                         </div>
                                     </div>
@@ -1025,6 +1131,8 @@
                     // 基金数据
                     funds: [],
                     newFundCode: '',
+                    fundFilterText: '',
+                    fundSortMode: 'default', // 'default' | 'gain' | 'loss'
                     isAddingFund: false,
                     fundTimer: null,
 
@@ -1052,7 +1160,14 @@
                         loading: false,
                         fundName: '',
                         fundCode: '',
-                        holdings: []
+                        holdings: [],
+                        meta: {
+                            weight_coverage: 0,
+                            contribution_available: false,
+                            confidence_label: '--',
+                            report_period: '',
+                            estimate_mode: 'none'
+                        }
                     },
 
                     // 数据状态
@@ -1125,14 +1240,14 @@
                             this.chartInstance = null;
                         }
 
-                        this.fetchFunds();
-                        this.fetchHoldings(); // 加载持仓数据
-                        // 基金页轮询间隔长 (30s)
+                        this.fetchFunds(true);
+                        this.fetchHoldings(true); // 加载持仓数据
+                        // 基金页轮询间隔 (3s)
                         if (this.timer) clearInterval(this.timer);
                         this.timer = setInterval(() => {
-                            this.fetchFunds();
-                            this.fetchHoldings();
-                        }, 30000); 
+                            this.fetchFunds(true);
+                            this.fetchHoldings(true, true);
+                        }, 3000);  
                     } else {
                         // 切换回金价视图时，立即刷新历史数据以填补断档
                         this.fetchHistory();
@@ -1145,6 +1260,38 @@
                 }
             },
             computed: {
+                portfolioContribution() {
+                    const holdings = this.portfolioDrawer.holdings || [];
+                    const meta = this.portfolioDrawer.meta || {};
+                    if (!holdings.length || meta.contribution_available === false) {
+                        return { available: false, value: 0 };
+                    }
+                    const total = holdings.reduce((sum, stock) => {
+                        return sum + (typeof stock.contribution === 'number' ? stock.contribution : 0);
+                    }, 0);
+                    return { available: true, value: total };
+                },
+                filteredFunds() {
+                    let result = [...this.funds];
+                    
+                    // 1. 过滤
+                    if (this.fundFilterText) {
+                        const q = this.fundFilterText.toLowerCase();
+                        result = result.filter(f => 
+                            f.name.toLowerCase().includes(q) || 
+                            f.code.toLowerCase().includes(q)
+                        );
+                    }
+                    
+                    // 2. 排序
+                    if (this.fundSortMode === 'gain') {
+                        result.sort((a, b) => b.change - a.change);
+                    } else if (this.fundSortMode === 'loss') {
+                        result.sort((a, b) => a.change - b.change);
+                    }
+                    
+                    return result;
+                },
                 isPriceUp() {
                     return this.currentData.change >= 0;
                 },
@@ -1842,9 +1989,9 @@
                 },
                 
                 // ==================== 基金逻辑 ====================
-                async fetchFunds() {
+                async fetchFunds(fast = true) {
                     try {
-                        const res = await fetch('/api/funds');
+                        const res = await fetch(`/api/funds?fast=${fast ? '1' : '0'}`);
                         const data = await res.json();
                         if (data.success) {
                             // 合并数据以保留动画状态
@@ -1912,6 +2059,7 @@
                     this.portfolioDrawer.fundName = fund.name;
                     this.portfolioDrawer.fundCode = fund.code;
                     if (!force) this.portfolioDrawer.holdings = []; 
+                    if (!force) this.portfolioDrawer.meta = { weight_coverage: 0, contribution_available: false, confidence_label: '--', report_period: '', estimate_mode: 'none' };
                     this.portfolioDrawer.visible = true;
                     this.portfolioDrawer.loading = true;
 
@@ -1920,7 +2068,13 @@
                         const res = await fetch(url);
                         const data = await res.json();
                         if (data.success) {
-                            this.portfolioDrawer.holdings = data.data;
+                            if (Array.isArray(data.data)) {
+                                this.portfolioDrawer.holdings = data.data;
+                                this.portfolioDrawer.meta = { weight_coverage: 0, contribution_available: false, confidence_label: '--', report_period: '', estimate_mode: 'none' };
+                            } else {
+                                this.portfolioDrawer.holdings = data.data.holdings || [];
+                                this.portfolioDrawer.meta = data.data.meta || { weight_coverage: 0, contribution_available: false, confidence_label: '--', report_period: '', estimate_mode: 'none' };
+                            }
                         }
                     } catch (e) {
                         console.error("获取重仓股失败", e);
@@ -1933,12 +2087,6 @@
                     this.portfolioDrawer.visible = false;
                 },
                 
-                getTotalContribution(holdings) {
-                    // 计算重仓股的估算总贡献
-                    if (!holdings || !holdings.length) return 0;
-                    return holdings.reduce((sum, stock) => sum + (stock.contribution || 0), 0);
-                },
-
                 // ==================== 持仓管理逻辑 ====================
                 addFundToHoldings(fund) {
                     // 从基金卡片快速添加到持仓，预填基金代码和当前净值
@@ -1957,10 +2105,12 @@
                     return this.holdings.some(h => String(h.code) === String(code));
                 },
 
-                async fetchHoldings() {
-                    this.isLoadingHoldings = true;
+                async fetchHoldings(fast = true, background = false) {
+                    if (!background) {
+                        this.isLoadingHoldings = true;
+                    }
                     try {
-                        const res = await fetch('/api/holdings');
+                        const res = await fetch(`/api/holdings?fast=${fast ? '1' : '0'}`);
                         const data = await res.json();
                         if (data.success) {
                             this.holdings = data.data || [];
@@ -1972,7 +2122,9 @@
                     } catch (e) {
                         console.error('获取持仓数据失败', e);
                     } finally {
-                        this.isLoadingHoldings = false;
+                        if (!background) {
+                            this.isLoadingHoldings = false;
+                        }
                     }
                 },
                 
