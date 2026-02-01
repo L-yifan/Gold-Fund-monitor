@@ -82,6 +82,9 @@ manual_records = []
 
 # 基金自选列表 (存储基金代码)
 fund_watchlist = []
+# 基金重仓股配置缓存 (持久化缓存，用于存储股票构成和权重)
+# 结构: { "code": { "timestamp": float, "report_period": str, "holdings_info": {stock_code: {name, weight}} } }
+fund_portfolios = {}
 # 基金数据缓存 (内存缓存，不持久化详情，只持久化代码列表)
 fund_cache = {}
 
@@ -97,6 +100,9 @@ alert_settings = {
 
 # 基金持仓数据 (存储在 data.json 中)
 fund_holdings = []  # [{code, name, cost_price, shares, note}, ...]
+
+# 持久化配置
+PORTFOLIO_CACHE_TTL = 86400  # 基金重仓股配置缓存有效期 (24小时)
 
 
 def cleanup_expired_data():
@@ -126,7 +132,8 @@ def save_data():
                 "price_history": list(price_history),
                 "alert_settings": alert_settings,
                 "fund_watchlist": fund_watchlist,
-                "fund_holdings": fund_holdings
+                "fund_holdings": fund_holdings,
+                "fund_portfolios": fund_portfolios
             }
             
             # 使用临时文件进行原子写入
@@ -143,7 +150,7 @@ def save_data():
 
 def load_data():
     """从 JSON 文件加载数据"""
-    global manual_records, price_history, alert_settings, fund_watchlist, fund_holdings
+    global manual_records, price_history, alert_settings, fund_watchlist, fund_holdings, fund_portfolios
     if os.path.exists(DATA_FILE):
         try:
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
@@ -159,7 +166,9 @@ def load_data():
                 fund_watchlist = data.get("fund_watchlist", [])
                 # 加载基金持仓
                 fund_holdings = data.get("fund_holdings", [])
-            print(f"成功加载数据: {len(manual_records)} 条记录, {len(price_history)} 条历史, {len(fund_watchlist)} 个自选基金, {len(fund_holdings)} 条持仓")
+                # 加载基金重仓股内容缓存
+                fund_portfolios = data.get("fund_portfolios", {})
+            print(f"成功加载数据: {len(manual_records)} 条记录, {len(price_history)} 条历史, {len(fund_watchlist)} 个自选基金, {len(fund_holdings)} 条持仓, {len(fund_portfolios)} 个重仓股缓存")
         except Exception as e:
             print(f"加载数据失败: {e}")
 
@@ -397,12 +406,16 @@ def fetch_gold_price():
     从配置的数据源列表中循环获取价格，包含熔断机制
     """
     now_ts = time.time()
-    for source in DATA_SOURCES:
-        # 检查是否被手动禁用或处于熔断期
-        if not source.get('enabled', False):
-            continue
-            
+    enabled_sources = [s for s in DATA_SOURCES if s.get('enabled', False)]
+    
+    if not enabled_sources:
+        return None, "没有启用的数据源"
+        
+    muted_count = 0
+    for source in enabled_sources:
+        # 检查是否处于熔断期
         if source.get('mute_until', 0) > now_ts:
+            muted_count += 1
             continue
             
         handler = SOURCE_HANDLERS.get(source['type'])
@@ -415,7 +428,7 @@ def fetch_gold_price():
             # 成功获取，重置失败计数
             source['fail_count'] = 0
             source['mute_until'] = 0
-            return data
+            return data, None
         else:
             # 失败处理：增加计数并检查是否触发熔断
             source['fail_count'] = source.get('fail_count', 0) + 1
@@ -424,8 +437,10 @@ def fetch_gold_price():
                 source['mute_until'] = now_ts + MUTE_DURATION
                 source['fail_count'] = 0 # 触发后重置，等待冷却后重新开始
             
-    print("所有可用数据源均获取失败")
-    return None
+    if muted_count == len(enabled_sources):
+        return None, "所有数据源均处于熔断冷却期，请稍后再试"
+        
+    return None, "所有可用数据源均获取失败，请检查网络或稍后重试"
 
 
 def calculate_target_prices(buy_price, fee_rate=0.005):
@@ -500,7 +515,7 @@ def background_fetch_loop():
     
     while True:
         try:
-            data = fetch_gold_price()
+            data, _ = fetch_gold_price()
             if data:
                 with lock:
                     # 添加到历史记录
@@ -608,53 +623,78 @@ def fetch_fund_data(fund_code):
     return None
 
 
-def fetch_fund_portfolio(fund_code):
+def fetch_fund_portfolio(fund_code, force_refresh=False):
     """
     获取基金持仓股票实时数据（含占比和贡献估算）
-    1. 从天天基金获取持仓代码和占比（季报数据）
-    2. 从新浪财经获取实时行情
-    3. 计算每只股票对基金净值的贡献
+    1. 检查本地持久化缓存 (24小时有效期)
+    2. 若缓存失效，则从天天基金重新获取构成和权重
+    3. 从新浪财经获取所有重仓股实时行情
+    4. 计算每只股票对基金净值的贡献
     """
     try:
-        # 1. 获取持仓信息（含占比）- 使用新 API
-        url = f"http://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&code={fund_code}&topline=10"
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Referer": "http://fundf10.eastmoney.com/"
-        }
-        response = requests.get(url, headers=headers, timeout=8)
-        response.encoding = 'utf-8'
-        text = response.text
-        
-        # 提取报告期（如 "2025年4季度"）
+        now_ts = datetime.now().timestamp()
+        holdings_info = {}
         report_period = ""
-        period_match = re.search(r'(\d{4})年(\d)季度', text)
-        if period_match:
-            report_period = f"{period_match.group(1)}年{period_match.group(2)}季度"
-        
-        # 解析 HTML 表格：提取 code, name, weight
-        # 模式：<td><a...>CODE</a></td><td class='tol'><a...>NAME</a></td>...<td class='tor'>WEIGHT%</td>
-        # 注意：第一个表格是最新季度，后面还有历史季度数据，我们只取前10条
-        pattern = r"<td><a[^>]*>(\d{6})</a></td>\s*<td class='tol'><a[^>]*>([^<]+)</a></td>.*?<td class='tor'>(\d+\.?\d*)%</td>"
-        matches = re.findall(pattern, text, re.DOTALL)
-        
-        if not matches:
-            # 降级：尝试旧 API
-            return fetch_fund_portfolio_fallback(fund_code)
-        
-        # 只取前10条（最新季度）
-        holdings_info = {}  # code -> {name, weight}
-        for code, name, weight in matches:
-            if code not in holdings_info and len(holdings_info) < 10:
-                holdings_info[code] = {
-                    "name": name,
-                    "weight": float(weight)
-                }
-        
+        use_cache = False
+
+        # 1. 尝试从持久化缓存获取构成 (有效期 24 小时)
+        if not force_refresh:
+            with lock:
+                if fund_code in fund_portfolios:
+                    cache_item = fund_portfolios[fund_code]
+                    if now_ts - cache_item.get('timestamp', 0) < PORTFOLIO_CACHE_TTL:
+                        holdings_info = cache_item.get('holdings_info', {})
+                        report_period = cache_item.get('report_period', "")
+                        use_cache = True
+                        # print(f"Using cache for fund {fund_code}")
+
+        # 2. 如果没有缓存，则从天天基金抓取新数据
+        if not use_cache:
+            url = f"http://fundf10.eastmoney.com/FundArchivesDatas.aspx?type=jjcc&code={fund_code}&topline=10"
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": "http://fundf10.eastmoney.com/"
+            }
+            response = requests.get(url, headers=headers, timeout=8)
+            response.encoding = 'utf-8'
+            text = response.text
+            
+            # 提取报告期（如 "2025年4季度"）
+            period_match = re.search(r'(\d{4})年(\d)季度', text)
+            if period_match:
+                report_period = f"{period_match.group(1)}年{period_match.group(2)}季度"
+            
+            # 解析 HTML 表格：提取 code, name, weight
+            pattern = r"<td><a[^>]*>(\d{6})</a></td>\s*<td class='tol'><a[^>]*>([^<]+)</a></td>.*?<td class='tor'>(\d+\.?\d*)%</td>"
+            matches = re.findall(pattern, text, re.DOTALL)
+            
+            if not matches:
+                # 降级：尝试旧 API (旧 API 可能获取不到权重，目前先保持现状)
+                return fetch_fund_portfolio_fallback(fund_code)
+            
+            # 构建持仓信息内容
+            for code, name, weight in matches:
+                if code not in holdings_info and len(holdings_info) < 10:
+                    holdings_info[code] = {
+                        "name": name,
+                        "weight": float(weight)
+                    }
+            
+            if holdings_info:
+                # 更新持久化缓存
+                with lock:
+                    fund_portfolios[fund_code] = {
+                        "timestamp": now_ts,
+                        "report_period": report_period,
+                        "holdings_info": holdings_info
+                    }
+                # 抓取到新数据后保存到磁盘
+                threading.Thread(target=save_data, daemon=True).start()
+
         if not holdings_info:
             return []
         
-        # 2. 映射为新浪 API 格式
+        # 3. 映射为新浪 API 格式
         sina_codes = []
         code_map = {}  # sina_code -> original_code
         
@@ -861,7 +901,7 @@ def get_price():
             latest = price_history[-1].copy() # 复制一份，避免直接修改缓存
             # 如果缓存数据太老（超过 30 秒），说明后台可能挂了或未运行，尝试实时抓一次
             if time.time() - latest["timestamp"] > STALE_THRESHOLD_SECONDS:
-                data = fetch_gold_price()
+                data, _ = fetch_gold_price()
                 if data:
                     price_history.append(data)
                     save_data()
@@ -875,14 +915,16 @@ def get_price():
             return jsonify({"success": True, "data": latest})
         else:
             # 没历史记录时去抓一次
-            data = fetch_gold_price()
+            data, error_msg = fetch_gold_price()
             if data:
                 with lock:
                     price_history.append(data)
                 save_data()
                 return jsonify({"success": True, "data": data})
+            else:
+                return jsonify({"success": False, "message": error_msg or "无法初始化基础数据"})
             
-    return jsonify({"success": False, "message": "获取数据失败"})
+    return jsonify({"success": False, "message": "系统错误，无法读取历史记录"})
 
 
 
@@ -1031,9 +1073,11 @@ def get_funds():
 
 
 @app.route('/api/funds/<fund_code>/portfolio')
+@app.route('/api/funds/<fund_code>/portfolio')
 def get_fund_portfolio(fund_code):
     """获取基金持仓详情"""
-    data = fetch_fund_portfolio(fund_code)
+    force_refresh = request.args.get('refresh', 'false').lower() == 'true'
+    data = fetch_fund_portfolio(fund_code, force_refresh=force_refresh)
     if data is not None:
         return jsonify({"success": True, "data": data})
     return jsonify({"success": False, "message": "获取持仓失败"})
