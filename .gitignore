@@ -39,5 +39,6 @@ yolotrain/
 # Project specific
 *.log
 data.json
+data/data.json
 manual_records.json
 AGENTS.md

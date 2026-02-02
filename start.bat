@@ -7,12 +7,17 @@ setlocal enabledelayedexpansion
 
 :: 1. Dynamically locate app.py in the script's directory
 set "APP_PATH=%~dp0app.py"
-set "INI_FILE=%~dp0launcher.ini"
 set "ENV_PYTHON="
 
 :: 2. Check Configuration File (Priority 0)
+:: First check new location (config/launcher.ini), then fallback to old location
+set "INI_FILE=%~dp0config\launcher.ini"
+if not exist "%INI_FILE%" (
+    set "INI_FILE=%~dp0launcher.ini"
+)
+
 if exist "%INI_FILE%" (
-    echo [INFO] Reading configuration from launcher.ini...
+    echo [INFO] Reading configuration from %INI_FILE%...
     for /f "usebackq tokens=1,* delims==" %%A in ("%INI_FILE%") do (
         set "KEY=%%A"
         set "VAL=%%B"
@@ -81,7 +86,7 @@ if %ERRORLEVEL% neq 0 (
     echo [ERROR] Application exited with error code %ERRORLEVEL%.
     echo.
     echo Troubleshooting:
-    echo 1. Check launcher.ini configuration.
+    echo 1. Check config/launcher.ini configuration.
     echo 2. If using system python, ensure it is added to PATH.
     echo 3. Ensure dependencies are installed: pip install -r requirements.txt
     echo.
