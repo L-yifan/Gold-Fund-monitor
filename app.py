@@ -1484,6 +1484,9 @@ def add_or_update_holding():
                 'shares': shares,
                 'note': note
             })
+        # 修改数据后使缓存失效
+        holdings_cache["response"] = None
+        holdings_cache["timestamp"] = 0
     
     save_data()
     return jsonify({"success": True, "message": "持仓已保存"})
@@ -1497,6 +1500,9 @@ def delete_holding(code_to_del):
         original_len = len(fund_holdings)
         fund_holdings = [h for h in fund_holdings if h['code'] != code_to_del]
         if len(fund_holdings) < original_len:
+            # 修改数据后使缓存失效
+            holdings_cache["response"] = None
+            holdings_cache["timestamp"] = 0
             save_data()
             return jsonify({"success": True, "message": "持仓已删除"})
     

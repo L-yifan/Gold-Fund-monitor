@@ -16,6 +16,21 @@
             0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); } /* Green for Down */
             50% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
         }
+        
+        /* 基金卡片状态闪烁 */
+        @keyframes flash-up {
+            0% { background-color: rgba(239, 68, 68, 0.1); }
+            50% { background-color: rgba(239, 68, 68, 0.3); }
+            100% { background-color: transparent; }
+        }
+        @keyframes flash-down {
+            0% { background-color: rgba(34, 197, 94, 0.1); }
+            50% { background-color: rgba(34, 197, 94, 0.3); }
+            100% { background-color: transparent; }
+        }
+        .animate-flash-up { animation: flash-up 1s ease-out; }
+        .animate-flash-down { animation: flash-down 1s ease-out; }
+
         .pulse-up { animation: pulse-up-color 2s infinite; }
         .pulse-down { animation: pulse-down-color 2s infinite; }
         .price-up { color: #ef4444; } /* Red */
@@ -34,11 +49,11 @@
         /* 新增：价格更新时的弹跳高亮效果 */
         @keyframes pop-in {
             0% { transform: scale(1); filter: brightness(1); }
-            50% { transform: scale(1.05); filter: brightness(1.3); }
+            40% { transform: scale(1.15); filter: brightness(1.5); }
             100% { transform: scale(1); filter: brightness(1); }
         }
         .pop-effect {
-            animation: pop-in 0.4s ease-out;
+            animation: pop-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         /* 新增：时间更新闪烁效果 (回归文字闪烁版) */
         @keyframes time-flash {
@@ -636,7 +651,11 @@
                     <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-6">
                         <div v-for="h in holdings" :key="h.code" 
                              @click="toggleHoldings(h)"
-                             class="group relative bg-[#1c2230]/60 backdrop-blur-xl rounded-2xl border border-white/5 hover:border-blue-500/30 hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] transition-all duration-300 cursor-pointer overflow-hidden flex flex-col h-[180px]">
+                             class="group relative bg-[#1c2230]/60 backdrop-blur-xl rounded-2xl border border-white/5 hover:border-blue-500/30 hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] transition-all duration-300 cursor-pointer overflow-hidden flex flex-col h-[180px]"
+                             :class="[
+                                h.animating && h.changeType === 'up' ? 'animate-flash-up' : '',
+                                h.animating && h.changeType === 'down' ? 'animate-flash-down' : ''
+                             ]">
                             
                             <!-- 盈亏状态侧边条 -->
                             <div class="absolute left-0 top-0 bottom-0 w-1"
@@ -655,9 +674,12 @@
                                     </div>
                                     <!-- 今日涨跌 -->
                                     <div class="shrink-0 text-right">
-                                        <div class="px-2 py-1 rounded-lg text-[11px] font-black font-mono shadow-sm"
-                                             :class="h.change >= 0 ? 'text-red-400 bg-red-400/5 ring-1 ring-red-400/20' : 'text-green-400 bg-green-400/5 ring-1 ring-green-400/20'">
-                                            {{ h.change >= 0 ? '+' : '' }}{{ h.change }}%
+                                        <div class="px-2 py-1 rounded-lg text-[11px] font-black font-mono shadow-sm transition-all duration-300 flex items-center justify-end"
+                                             :class="[
+                                                h.change >= 0 ? 'text-red-400 bg-red-400/5 ring-1 ring-red-400/20' : 'text-green-400 bg-green-400/5 ring-1 ring-green-400/20',
+                                                h.animating ? 'pop-effect' : ''
+                                             ]">
+                                            <span>{{ h.change >= 0 ? '+' : '' }}{{ h.change }}%</span>
                                         </div>
                                     </div>
                                 </div>
@@ -792,7 +814,9 @@
                              @click="toggleHoldings(fund)"
                              class="bg-gray-800 rounded-xl p-3 border transition-all hover:bg-gray-750 hover:border-blue-500/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.2)] hover:scale-[1.02] group relative overflow-hidden cursor-pointer flex flex-col h-full"
                              :class="[
-                                fund.change > 0 ? 'border-red-500/10 bg-red-500/[0.02]' : (fund.change < 0 ? 'border-green-500/10 bg-green-500/[0.02]' : 'border-gray-700/50')
+                                fund.change > 0 ? 'border-red-500/10 bg-red-500/[0.02]' : (fund.change < 0 ? 'border-green-500/10 bg-green-500/[0.02]' : 'border-gray-700/50'),
+                                fund.animating && fund.changeType === 'up' ? 'animate-flash-up' : '',
+                                fund.animating && fund.changeType === 'down' ? 'animate-flash-down' : ''
                              ]">
                             
                             <!-- S013: 核心信息区 (高密度布局) -->
@@ -816,21 +840,29 @@
                                 <!-- 第二段：关键指标 (居中强调涨跌) -->
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-baseline gap-1">
-                                        <span class="text-2xl font-black font-mono tracking-tighter transition-colors duration-300"
-                                              :class="fund.change > 0 ? 'text-red-500' : (fund.change < 0 ? 'text-green-500' : 'text-gray-400')">
+                                        <span class="text-2xl font-black font-mono tracking-tighter transition-all duration-300 flex items-center"
+                                              :class="[
+                                                fund.change > 0 ? 'text-red-500' : (fund.change < 0 ? 'text-green-500' : 'text-gray-400'),
+                                                fund.animating ? 'pop-effect' : ''
+                                             ]">
                                             {{ (fund.change > 0 ? '+' : '') + fund.change }}%
+                                            <span class="text-lg w-5 text-center inline-block transition-all duration-300 transform"
+                                                  :class="fund.animating ? 'opacity-100 scale-125' : 'opacity-0 scale-50 overflow-hidden w-0'">
+                                                {{ fund.changeType === 'up' ? '↑' : '↓' }}
+                                            </span>
                                         </span>
                                     </div>
                                     <div class="text-right">
                                         <p class="text-[10px] text-gray-500 font-mono uppercase leading-none mb-0.5">净值</p>
-                                        <span class="text-sm font-bold text-gray-300 font-mono">{{ fund.price }}</span>
+                                        <span class="text-sm font-bold text-gray-300 font-mono transition-transform" :class="fund.animating ? 'scale-110' : ''">{{ fund.price }}</span>
                                     </div>
                                 </div>
 
                                 <!-- 第三段：状态脚部 (仅显示核心时间) -->
                                 <div class="flex justify-between items-center opacity-40 group-hover:opacity-80 transition-opacity">
                                     <span class="text-[10px] text-gray-500 font-mono">{{ fund.time_str }}</span>
-                                    <div v-if="fund.animating" class="w-1 h-1 rounded-full bg-blue-400 animate-ping"></div>
+                                    <div v-if="fund.animating" class="w-1 h-1 rounded-full animate-ping"
+                                         :class="fund.changeType === 'up' ? 'bg-red-400' : 'bg-green-400'"></div>
                                 </div>
                             </div>
 
@@ -2000,18 +2032,34 @@
                             // 更新现有列表或添加新项
                             this.funds = data.data.map(newFund => {
                                 const oldFund = this.funds.find(f => f.code === newFund.code);
-                                const isChanged = oldFund && (oldFund.change !== newFund.change || oldFund.price !== newFund.price);
+                                let animating = oldFund ? oldFund.animating : false;
+                                let changeType = oldFund ? oldFund.changeType : ''; // 'up', 'down' or ''
+                                
+                                if (oldFund && (oldFund.change !== newFund.change || oldFund.price !== newFund.price)) {
+                                    animating = true;
+                                    // 确定变动方向
+                                    if (newFund.change > oldFund.change || newFund.price > oldFund.price) {
+                                        changeType = 'up';
+                                    } else {
+                                        changeType = 'down';
+                                    }
+                                }
                                 
                                 return {
                                     ...newFund,
-                                    animating: isChanged ? true : (oldFund ? oldFund.animating : false) // 简单的触发逻辑，实际可以用定时器复位
+                                    animating: animating,
+                                    changeType: changeType
                                 };
                             });
                             
-                            // 简单的动画复位逻辑
+                            // 1秒后复位动画状态 (对应 CSS 1s 动画)
                             setTimeout(() => {
-                                this.funds.forEach(f => f.animating = false);
-                            }, 500);
+                                this.funds.forEach(f => {
+                                    f.animating = false;
+                                    // 不建议立即复位 changeType，因为 HTML 还需要它来显示箭头，
+                                    // 但因为 animating 变 false 了，class 就会消失
+                                });
+                            }, 1000);
                             
                             this.isConnected = true;
                         }
@@ -2033,7 +2081,7 @@
                         const data = await res.json();
                         if (data.success) {
                             this.newFundCode = '';
-                            this.fetchFunds(); // 刷新列表
+                            this.fetchFunds(false); // 强制获取最新数据，不使用缓存
                         } else {
                             await this.openConfirm('添加失败', data.message, '知道了', 'bg-gray-600');
                         }
@@ -2051,6 +2099,7 @@
                     try {
                         await fetch(`/api/funds/${code}`, { method: 'DELETE' });
                         this.funds = this.funds.filter(f => f.code !== code);
+                        // 无需额外刷新，Vue 响应式已处理
                     } catch (e) { console.error(e); }
                 },
                 
@@ -2113,7 +2162,35 @@
                         const res = await fetch(`/api/holdings?fast=${fast ? '1' : '0'}`);
                         const data = await res.json();
                         if (data.success) {
-                            this.holdings = data.data || [];
+                            // 保留动画状态的合并逻辑
+                            if (this.holdings.length > 0) {
+                                this.holdings = (data.data || []).map(newH => {
+                                    const oldH = this.holdings.find(o => o.code === newH.code);
+                                    let animating = oldH ? oldH.animating : false;
+                                    let changeType = oldH ? oldH.changeType : '';
+                                    
+                                    if (oldH && (oldH.change !== newH.change || oldH.price !== newH.price)) {
+                                        animating = true;
+                                        changeType = (newH.change > oldH.change || newH.price > oldH.price) ? 'up' : 'down';
+                                    }
+                                    
+                                    return {
+                                        ...newH,
+                                        animating: animating,
+                                        changeType: changeType
+                                    };
+                                });
+                                
+                                // 1秒后复位
+                                setTimeout(() => {
+                                    this.holdings.forEach(h => {
+                                        h.animating = false;
+                                    });
+                                }, 1000);
+                            } else {
+                                this.holdings = data.data || [];
+                            }
+
                             this.holdingsSummary = data.summary || { total_cost: 0, total_value: 0, total_profit: 0, total_profit_rate: 0, count: 0 };
                             this.holdingsLastUpdate = data.last_update || '--';
                         } else {
@@ -2189,7 +2266,7 @@
                         const data = await res.json();
                         if (data.success) {
                             this.closeHoldingModal();
-                            this.fetchHoldings(); // 刷新列表
+                            this.fetchHoldings(false); // 强制刷新列表，不使用缓存
                         } else {
                             await this.openConfirm('保存失败', data.message, '知道了', 'bg-gray-600');
                         }
@@ -2212,7 +2289,7 @@
                         const res = await fetch(`/api/holdings/${code}`, { method: 'DELETE' });
                         const data = await res.json();
                         if (data.success) {
-                            this.fetchHoldings(); // 刷新列表
+                            this.fetchHoldings(false); // 强制刷新列表，不使用缓存
                         } else {
                             await this.openConfirm('删除失败', data.message, '知道了', 'bg-gray-600');
                         }
