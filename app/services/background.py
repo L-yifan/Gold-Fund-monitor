@@ -21,10 +21,10 @@ def background_fetch_loop():
     while True:
         try:
             # 获取当前应使用的采集间隔
-            interval = get_fetch_interval()
+            interval = get_fetch_interval("gold")
             
             # 检查是否触发交易事件（开收盘）
-            event = check_trading_events(last_trading_status)
+            event = check_trading_events("gold", last_trading_status)
             if event:
                 print(f"[交易事件] {event['event_name']} 已触发！")
                 # TODO: 在这里可以添加通知逻辑

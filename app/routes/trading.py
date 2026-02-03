@@ -4,8 +4,8 @@
 提供交易时间状态查询接口
 """
 
-from flask import Blueprint, jsonify
-from app.services.trading_hours import get_trading_status
+from flask import Blueprint, jsonify, request
+from app.services.trading_hours import get_trading_status, get_fund_trading_status
 
 
 trading_bp = Blueprint('trading', __name__)
@@ -14,27 +14,18 @@ trading_bp = Blueprint('trading', __name__)
 @trading_bp.route('/api/trading-status')
 def get_trading_status_api():
     """
-    获取当前交易状态
+    获取当前交易状态 (支持 ?type=gold 或 ?type=fund)
     
     返回:
         JSON: 交易状态信息
-        {
-            "success": True,
-            "data": {
-                "is_trading_time": bool,
-                "trading_phase": str,
-                "phase_name": str,
-                "next_event": str,
-                "next_event_time": str (ISO格式),
-                "time_until_next": int (秒),
-                "is_holiday": bool,
-                "weekday": int,
-                "weekday_name": str
-            }
-        }
     """
     try:
-        status = get_trading_status()
+        asset_type = request.args.get('type', 'gold').lower()
+        
+        if asset_type == 'fund':
+            status = get_fund_trading_status()
+        else:
+            status = get_trading_status()
         
         # 转换时间为 ISO 格式字符串
         next_event_time_str = None
