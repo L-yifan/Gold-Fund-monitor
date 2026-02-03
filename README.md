@@ -315,7 +315,7 @@ app.run(host='0.0.0.0', port=5000, debug=True, threaded=True, use_reloader=False
 <截图位置：基金估值管理界面>
 *持仓总览、盈亏分析、重仓股贡献度、基金卡片*
 
-## 🧰 开发指南
+## 开发指南
 
 ### 详细规范
 开发者请阅读 **[AGENTS.md](AGENTS.md)** 获取完整的开发规范。
