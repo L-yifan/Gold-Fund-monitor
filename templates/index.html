@@ -274,6 +274,7 @@
         }
 
         .list-move {
+            will-change: transform;
             transition: transform 0.4s cubic-bezier(0.55, 0, 0.1, 1);
         }
 
@@ -327,276 +328,187 @@
             overflow: hidden;
         }
 
-        /* ==================== 竖直书签 - 交易状态指示器 ==================== */
-        .vertical-bookmark {
-            position: fixed;
-            right: 40px;
-            top: 55px;
-            width: 111px;
-            max-height: 280px;
-            background: #161b2a;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 4px 4px 8px 8px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        /* ==================== 紧凑型状态胶囊 - 交易状态指示器 ==================== */
+        .status-pill {
             display: flex;
-            flex-direction: column;
             align-items: center;
-            padding: 14px 10px;
-            z-index: 45;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            gap: 8px;
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 9999px;
+            cursor: default;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
             overflow: hidden;
-            /* 改回 hidden 以便 scanner 被裁切 */
         }
 
-
-        /* 霓虹扫描线 - 减弱后的效果 */
-        .bookmark-scanner {
+        /* 极光扫过动效 */
+        .status-pill::before {
+            content: '';
             position: absolute;
-            top: -50px;
-            left: 0;
+            top: 0;
+            left: -100%;
             width: 100%;
-            height: 30px;
-            background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.05), transparent);
-            pointer-events: none;
-            animation: bookmark-scan 4s linear infinite;
+            height: 100%;
+            background: linear-gradient(90deg,
+                    transparent,
+                    rgba(255, 255, 255, 0.05),
+                    transparent);
+            transition: none;
         }
 
-        @keyframes bookmark-scan {
+        .status-pill.active::before {
+            animation: pill-shimmer 3s infinite;
+        }
+
+        @keyframes pill-shimmer {
+            0% {
+                left: -100%;
+            }
+
+            30% {
+                left: 100%;
+            }
+
             100% {
-                top: 100%;
-                opacity: 0;
+                left: 100%;
             }
         }
 
-        /* 交易中状态：仅增强边框感和发光 */
-        .vertical-bookmark.is-trading {
-            border-color: rgba(16, 185, 129, 0.3);
-            box-shadow:
-                0 15px 35px -5px rgba(0, 0, 0, 0.7),
-                0 0 15px rgba(16, 185, 129, 0.1),
-                inset 0 1px 1px rgba(255, 255, 255, 0.08);
+        .status-pill.active {
+            animation: pill-breath-active 3s ease-in-out infinite;
+            border-color: rgba(16, 185, 129, 0.2);
         }
 
-        /* 节假日状态：仅增强边框感 */
-        .vertical-bookmark.is-holiday {
-            border-color: rgba(245, 158, 11, 0.3);
-            box-shadow:
-                0 15px 35px -5px rgba(0, 0, 0, 0.7),
-                0 0 15px rgba(245, 158, 11, 0.1),
-                inset 0 1px 1px rgba(255, 255, 255, 0.08);
+        .status-pill.holiday {
+            animation: pill-breath-holiday 4s ease-in-out infinite;
+            border-color: rgba(245, 158, 11, 0.2);
         }
 
-        /* LED灯 */
-        .bookmark-led {
-            width: 16px;
-            height: 16px;
+        @keyframes pill-breath-active {
+
+            0%,
+            100% {
+                box-shadow: 0 0 5px rgba(16, 185, 129, 0), inset 0 0 0 rgba(16, 185, 129, 0);
+                background: rgba(16, 185, 129, 0.02);
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(16, 185, 129, 0.15), inset 0 0 8px rgba(16, 185, 129, 0.05);
+                background: rgba(16, 185, 129, 0.06);
+            }
+        }
+
+        @keyframes pill-breath-holiday {
+
+            0%,
+            100% {
+                box-shadow: 0 0 5px rgba(245, 158, 11, 0);
+                background: rgba(245, 158, 11, 0.02);
+            }
+
+            50% {
+                box-shadow: 0 0 15px rgba(245, 158, 11, 0.1);
+                background: rgba(245, 158, 11, 0.05);
+            }
+        }
+
+        .status-pill:hover {
+            background: rgba(255, 255, 255, 0.08) !important;
+            border-color: rgba(255, 255, 255, 0.25) !important;
+            padding-right: 16px;
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.05) !important;
+        }
+
+        /* 标题文字呼吸 */
+        .title-breath-active {
+            animation: title-glow 3s ease-in-out infinite;
+        }
+
+        @keyframes title-glow {
+
+            0%,
+            100% {
+                text-shadow: 0 0 0 rgba(250, 204, 21, 0);
+            }
+
+            50% {
+                text-shadow: 0 0 15px rgba(250, 204, 21, 0.3);
+            }
+        }
+
+        /* 呼吸灯效果 */
+        .led-dot {
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background: #4b5563;
-            box-shadow:
-                inset 0 2px 4px rgba(0, 0, 0, 0.6),
-                0 0 0 2px rgba(255, 255, 255, 0.05);
-            margin-bottom: 12px;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            flex-shrink: 0;
             position: relative;
+            flex-shrink: 0;
         }
 
-        .bookmark-led::after {
-            content: '';
-            position: absolute;
-            inset: -4px;
-            border-radius: 50%;
-            border: 1px solid transparent;
-            opacity: 0;
-            transition: all 0.5s ease;
-        }
-
-        .bookmark-led.active {
+        .led-dot.active {
             background: #10b981;
-            box-shadow:
-                0 0 15px rgba(16, 185, 129, 0.8),
-                0 0 30px rgba(16, 185, 129, 0.4),
-                inset 0 -2px 4px rgba(0, 0, 0, 0.2);
-            animation: bookmark-led-pulse 2s ease-in-out infinite;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.8), 0 0 20px rgba(16, 185, 129, 0.4);
+            animation: led-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
 
-        .bookmark-led.active::after {
-            border-color: rgba(16, 185, 129, 0.3);
-            opacity: 1;
-            animation: orb-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-        }
-
-        @keyframes orb-ping {
-
-            75%,
-            100% {
-                transform: scale(2.5);
-                opacity: 0;
-            }
-        }
-
-        .vertical-bookmark.is-holiday .bookmark-led {
+        .led-dot.holiday {
             background: #f59e0b;
-            box-shadow:
-                0 0 15px rgba(245, 158, 11, 0.8),
-                0 0 30px rgba(245, 158, 11, 0.4);
-            animation: bookmark-led-pulse 1.2s ease-in-out infinite;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.8), 0 0 20px rgba(245, 158, 11, 0.4);
+            animation: led-pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
 
-        /* 内容区 - 修复 Flex 与 Writing-mode 冲突 */
-        .bookmark-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 12px;
-            flex: 1;
-            width: 100%;
-            margin-top: 4px;
-        }
-
-        .bookmark-phase {
-            font-size: 13px;
-            font-weight: 800;
-            color: #ffffff;
-            letter-spacing: 0.3em;
-            /* 进一步增加字间距 */
-            writing-mode: vertical-rl;
-            text-orientation: upright;
-            text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
-            background: linear-gradient(180deg, #fff, rgba(255, 255, 255, 0.6));
-            background-clip: text;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .bookmark-weekday {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.95);
-            padding: 5px 3px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(4px);
-            border-radius: 4px;
-            writing-mode: vertical-rl;
-            text-orientation: upright;
-            margin: 4px 0;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-        }
-
-        .bookmark-countdown {
-            font-size: 11px;
-            color: rgba(255, 255, 255, 0.7);
-            line-height: 1.25;
-            text-align: center;
-            opacity: 1;
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 700;
-            width: 100%;
-            word-break: break-all;
-            letter-spacing: -0.02em;
-        }
-
-        /* 底部装饰 - 优化为丝带剪纸效果 */
-        .bookmark-tail {
-            position: absolute;
-            bottom: -15px;
-            left: 0;
-            width: 100%;
-            height: 20px;
-            display: flex;
-            justify-content: center;
-            pointer-events: none;
-        }
-
-        .bookmark-tail::before {
-            content: '';
-            width: 0;
-            height: 0;
-            border-left: 45px solid transparent;
-            border-right: 45px solid transparent;
-            border-top: 15px solid #111827;
-            /* 继承书签底部颜色 */
-            filter: drop-shadow(0 5px 5px rgba(0, 0, 0, 0.3));
-        }
-
-        .is-trading .bookmark-tail::before,
-        .is-holiday .bookmark-tail::before {
-            border-top-color: #111827;
-            /* 保持与主体背景一致 */
-        }
-
-        @keyframes bookmark-led-pulse {
+        @keyframes led-pulse {
 
             0%,
             100% {
                 transform: scale(1);
-                opacity: 1;
                 filter: brightness(1);
             }
 
             50% {
-                transform: scale(1.1);
-                opacity: 0.8;
-                filter: brightness(1.2);
+                transform: scale(1.3);
+                filter: brightness(1.4);
             }
         }
 
-        /* 尾部呼吸动画 */
-        .is-trading .bookmark-tail::before {
-            animation: tail-flicker 2s ease-in-out infinite;
+        .pill-details {
+            max-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
-        @keyframes tail-flicker {
-
-            0%,
-            100% {
-                opacity: 1;
-                transform: scaleY(1);
-            }
-
-            50% {
-                opacity: 0.8;
-                transform: scaleY(0.95);
-            }
+        .status-pill:hover .pill-details {
+            max-width: 250px;
+            opacity: 1;
+            margin-left: 4px;
         }
 
+        .pill-phase {
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
+        }
 
-        /* 响应式 - 移动端极简指示灯模式 */
         @media (max-width: 768px) {
-            .vertical-bookmark {
-                right: 15px;
-                top: 15px;
-                /* 对齐标题栏中心 */
-                width: 38px;
-                height: 38px;
-                min-height: 38px;
-                padding: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 50%;
-                /* 变成圆形或圆润的小模块 */
-                background: rgba(31, 41, 55, 0.8);
-                backdrop-filter: blur(8px);
-                border: 1px solid rgba(255, 255, 255, 0.1);
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            .status-pill {
+                padding: 4px 8px;
             }
 
-            .bookmark-led {
-                width: 12px;
-                height: 12px;
-                margin-bottom: 0;
-                /* 居中不需要边距 */
-            }
-
-            /* 隐藏非核心元素 */
-            .bookmark-scanner,
-            .bookmark-content,
-            .bookmark-tail {
+            .pill-details {
                 display: none !important;
             }
         }
+
 
         @keyframes pulse-breath-live {
 
@@ -633,17 +545,229 @@
         .animate-breath-closed {
             animation: pulse-breath-closed 4s ease-in-out infinite;
         }
-    </style>
+
+        .animate-subtle-float {
+            animation: subtle-float 6s ease-in-out infinite;
+        }
+
+        @keyframes subtle-float {
+
+            0%,
+            100% {
+                transform: translateY(0) rotate(45deg);
+            }
+
+            50% {
+                transform: translateY(-10px) rotate(45deg);
+            }
+        }
+
+        .animate-number-pulse {
+            will-change: transform;
+            animation: number-pulse 1s ease-out;
+        }
+
+        @keyframes number-pulse {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.08);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* 价格容器呼吸效果 */
+        .price-container-breath {
+            will-change: border-color, box-shadow;
+            animation: price-container-glow 4s ease-in-out infinite;
+        }
+
+        @keyframes price-container-glow {
+
+            0%,
+            100% {
+                border-color: rgba(255, 255, 255, 0.05);
+                box-shadow: 0 0 0 rgba(255, 255, 255, 0);
+            }
+
+            50% {
+                border-color: rgba(255, 255, 255, 0.15);
+                box-shadow: 0 0 20px rgba(255, 255, 255, 0.03);
+            }
+        }
+
+        /* 价格文字呼吸逻辑 (确保已在文件中的样式被覆盖或强化) */
+        .price-text-breath-up {
+            animation: price-glow-up-intense 3s ease-in-out infinite;
+        }
+
+        .price-text-breath-down {
+            animation: price-glow-down-intense 3s ease-in-out infinite;
+        }
+
+        @keyframes price-glow-up-intense {
+
+            0%,
+            100% {
+                text-shadow: 0 0 0 rgba(239, 68, 68, 0);
+            }
+
+            50% {
+                text-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+            }
+        }
+
+        @keyframes price-glow-down-intense {
+
+            0%,
+            100% {
+                text-shadow: 0 0 0 rgba(34, 197, 94, 0);
+            }
+
+            50% {
+                text-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+            }
+        }
+
+        /* 全局卡片柔和呼吸 */
+        @keyframes ambient-card-breath {
+
+            0%,
+            100% {
+                border-color: rgba(255, 255, 255, 0.05);
+                box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.3);
+            }
+
+            50% {
+                border-color: rgba(255, 255, 255, 0.1);
+                box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
+            }
+        }
+
+        .card-ambient-breath {
+            will-change: border-color, box-shadow;
+            animation: ambient-card-breath 8s ease-in-out infinite;
+        }
+
+        /* 录入按钮高级呼吸 */
+        .btn-premium-breath {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-premium-breath:not(:disabled)::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            animation: btn-ripple 4s infinite linear;
+            pointer-events: none;
+        }
+
+        @keyframes btn-ripple {
+            0% {
+                transform: translate(-30%, -30%) scale(0.5);
+                opacity: 0;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(30%, 30%) scale(1.2);
+                opacity: 0;
+            }
+        }
+
+
+
+        /* 盈利进度条流动光效 */
+        .profit-bar-shimmer {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .profit-bar-shimmer::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(90deg,
+                    transparent,
+                    rgba(255, 255, 255, 0.2),
+                    transparent);
+            animation: bar-shimmer-run 2.5s infinite linear;
+        }
+
+        @keyframes bar-shimmer-run {
+            0% {
+                left: -100%;
+            }
+
+            100% {
+                left: 150%;
+            }
+        }
+
+        /* 实时状态角标呼吸 */
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 6px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 4px;
+            color: #ef4444;
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .live-dot-pulse {
+            width: 5px;
+            height: 5px;
+            background: #ef4444;
+            border-radius: 50%;
+            animation: live-ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes live-ping {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            75%,
+            100% {
+                transform: scale(2.5);
+                opacity: 0;
+            }
+        }
+
+        </style>
 </head>
 
 <body
     class="bg-[#0b0f19] text-gray-200 min-h-screen font-sans selection:bg-blue-500/30 selection:text-blue-200 overflow-x-hidden relative">
     <!-- 全局背景装饰 (增强美观度) -->
     <div
-        class="fixed top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/5 blur-[120px] rounded-full pointer-events-none -z-10">
+        class="fixed top-0 left-1/4 w-[500px] h-[500px] bg-blue-600/5 blur-[120px] rounded-full animate-blob-slow pointer-events-none -z-10">
     </div>
     <div
-        class="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-600/5 blur-[150px] rounded-full pointer-events-none -z-10">
+        class="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-purple-600/5 blur-[150px] rounded-full animate-blob-delay pointer-events-none -z-10">
     </div>
 
     {% raw %}
@@ -653,13 +777,13 @@
             class="fixed top-0 left-0 right-0 z-[60] bg-[#1a1f2e] border-b border-white/5 h-14 flex items-center justify-center gap-1 shadow-xl">
             <button @click="currentView = 'gold'"
                 class="px-6 py-1.5 rounded-full text-sm font-bold transition-all duration-300 relative overflow-hidden group"
-                :class="currentView === 'gold' ? 'bg-[#facc15] text-[#0b0f19] shadow-lg shadow-yellow-500/20' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'">
+                :class="[currentView === 'gold' ? 'bg-[#facc15] text-[#0b0f19] shadow-lg shadow-yellow-500/20 nav-shimmer' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5']">
                 <span class="relative z-10">金价监控</span>
             </button>
             <div class="w-px h-4 bg-white/10 mx-2"></div>
             <button @click="currentView = 'fund'"
                 class="px-6 py-1.5 rounded-full text-sm font-bold transition-all duration-300 relative overflow-hidden group"
-                :class="currentView === 'fund' ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/20' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'">
+                :class="[currentView === 'fund' ? 'bg-[#3b82f6] text-white shadow-lg shadow-blue-500/20 nav-shimmer' : 'text-gray-400 hover:text-gray-200 hover:bg-white/5']">
                 <span class="relative z-10">基金估值</span>
             </button>
         </nav>
@@ -696,24 +820,50 @@
             <!-- 顶部标题栏 -->
             <header class="fixed top-14 left-0 right-0 z-50 bg-[#0b0f19] border-b border-white/5 py-4 px-6 shadow-sm">
                 <div class="max-w-7xl mx-auto flex justify-between items-center">
-                    <div class="flex-1">
-                        <h1 class="text-xl font-extrabold text-[#facc15] hidden sm:block tracking-tight">Au99.99 实时监控
-                        </h1>
-                        <h1 class="text-lg font-extrabold text-[#facc15] sm:hidden">Au99.99</h1>
-                        <p class="text-gray-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">{{
-                            currentData.source || 'SGE' }}行情数据</p>
+                    <div class="flex-1 flex items-center gap-3">
+                        <div class="flex flex-col">
+                            <h1 class="text-xl font-extrabold text-[#facc15] hidden sm:block tracking-tight"
+                                :class="{'title-breath-active': tradingStatus.is_trading_time}">Au99.99
+                                实时监控</h1>
+                            <h1 class="text-lg font-extrabold text-[#facc15] sm:hidden">Au99.99</h1>
+                            <p class="text-gray-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+                                {{
+                                currentData.source || 'SGE' }}行情数据</p>
+                        </div>
+
+                        <!-- 紧凑型状态胶囊 -->
+                        <div v-if="currentView === 'gold'" class="status-pill ml-2"
+                            :class="{ 'active': tradingStatus.is_trading_time, 'holiday': tradingStatus.is_holiday }"
+                            :title="tradingStatus.phase_name + (tradingStatus.time_until_next ? ' | ' + formatCountdown(tradingStatus.time_until_next) + '后' + (tradingStatus.next_event && (tradingStatus.next_event.includes('open') || tradingStatus.next_event.includes('auction')) ? '开市' : '收市') : '')">
+                            <div class="led-dot"
+                                :class="{ 'active': tradingStatus.is_trading_time, 'holiday': tradingStatus.is_holiday }">
+                            </div>
+                            <span class="pill-phase"
+                                :class="{ 'text-emerald-400': tradingStatus.is_trading_time, 'text-amber-400': tradingStatus.is_holiday }">{{
+                                tradingStatus.phase_name }}</span>
+                            <div class="pill-details">
+                                <span class="w-px h-2.5 bg-white/10"></span>
+                                <span class="text-[10px]">{{ tradingStatus.weekday_name }}</span>
+                                <template v-if="tradingStatus.time_until_next">
+                                    <span class="w-px h-2.5 bg-white/10"></span>
+                                    <span class="font-mono">{{ formatCountdown(tradingStatus.time_until_next) }}</span>
+                                    <span class="text-[9px] opacity-70">{{ tradingStatus.next_event &&
+                                        (tradingStatus.next_event.includes('open') ||
+                                        tradingStatus.next_event.includes('auction')) ? '开市' : '收市' }}</span>
+                                </template>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- 实时价格显示 (下滑时依然可见) -->
                     <div class="flex-1 flex justify-center items-center">
-                        <div class="bg-black/20 px-4 py-1.5 rounded-xl border border-white/5 flex items-center gap-3 hw-accel"
+                        <div class="bg-black/20 px-4 py-1.5 rounded-xl border border-white/5 price-container-breath flex items-center gap-3 hw-accel"
                             :class="{'pop-effect': priceAnimating}">
                             <span class="text-2xl font-black font-mono tracking-tighter transition-colors duration-300"
-                                :class="isPriceUp ? 'text-red-500' : 'text-green-500'">
+                                :class="isPriceUp ? 'text-red-500 price-text-breath-up' : 'text-green-500 price-text-breath-down'">
                                 {{ formatPrice(currentData.price) }}
                             </span>
                             <span class="text-xs font-black font-mono px-2 py-0.5 rounded bg-white/5"
-                                :class="isPriceUp ? 'text-red-400' : 'text-green-400'">
+                                :class="isPriceUp ? 'text-red-400 price-text-breath-up' : 'text-green-400 price-text-breath-down'">
                                 {{ currentData.change >= 0 ? '+' : '' }}{{ currentData.change }}
                             </span>
                         </div>
@@ -729,31 +879,6 @@
                         </p>
                     </div>
                 </div>
-
-                <!-- 竖直书签 - 交易状态指示器 -->
-                <div v-if="currentView === 'gold'" class="vertical-bookmark" :class="{ 'is-trading': tradingStatus.is_trading_time, 
-                           'is-holiday': tradingStatus.is_holiday }" @mouseenter="isRibbonHovered = true"
-                    @mouseleave="isRibbonHovered = false">
-                    <!-- 霓虹扫描线效果 -->
-                    <div class="bookmark-scanner"></div>
-
-                    <!-- LED灯 (脉冲核心) -->
-                    <div class="bookmark-led" :class="{ 'active': tradingStatus.is_trading_time }"></div>
-
-                    <!-- 状态文字（修复后的布局） -->
-                    <div class="bookmark-content">
-                        <span class="bookmark-phase">{{ tradingStatus.phase_name }}</span>
-                        <span class="bookmark-weekday">{{ tradingStatus.weekday_name }}</span>
-                        <span v-if="tradingStatus.time_until_next" class="bookmark-countdown">
-                            {{ formatCountdown(tradingStatus.time_until_next) }}后{{
-                            tradingStatus.next_event && (tradingStatus.next_event.includes('open') ||
-                            tradingStatus.next_event.includes('auction')) ? '开市' : '收市' }}
-                        </span>
-                    </div>
-
-                    <!-- 底部装饰 -->
-                    <div class="bookmark-tail"></div>
-                </div>
             </header>
 
             <main class="max-w-7xl mx-auto p-6 pt-32">
@@ -765,7 +890,7 @@
                         <!-- 粘性价格容器 (修正偏移量以实现对齐) -->
                         <div class="lg:sticky lg:top-28 space-y-6">
                             <!-- 当前价格卡片 -->
-                            <div class="rounded-2xl p-6 transition-all duration-500 solid-card shadow-2xl relative overflow-hidden"
+                            <div class="rounded-2xl p-6 transition-all duration-500 solid-card card-ambient-breath shadow-2xl relative overflow-hidden"
                                 :class="[isPriceUp ? 'border-red-500/20 bg-gradient-to-br from-red-500/5 to-transparent' : 'border-green-500/20 bg-gradient-to-br from-green-500/5 to-transparent', {'pop-effect': priceAnimating}]">
                                 <p
                                     class="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-2 opacity-80">
@@ -773,11 +898,11 @@
                                 <div class="flex items-baseline gap-3">
                                     <span
                                         class="text-5xl font-black font-mono tracking-tighter transition-transform duration-300"
-                                        :class="isPriceUp ? 'text-red-500' : 'text-green-500'">
+                                        :class="isPriceUp ? 'text-red-500 price-text-breath-up' : 'text-green-500 price-text-breath-down'">
                                         {{ formatPrice(currentData.price) }}
                                     </span>
                                     <span class="text-xl font-black font-mono"
-                                        :class="isPriceUp ? 'text-red-400' : 'text-green-400'">
+                                        :class="isPriceUp ? 'text-red-400 price-text-breath-up' : 'text-green-400 price-text-breath-down'">
                                         {{ currentData.change >= 0 ? '+' : '' }}{{ currentData.change }}
                                     </span>
                                     <!-- Source Badge -->
@@ -915,7 +1040,7 @@
 
                             <!-- 记录按钮 -->
                             <button @click="recordPrice" :disabled="!(buyPrice > 0)"
-                                class="w-full font-bold py-4 rounded-xl transition shadow-lg flex justify-center items-center gap-2"
+                                class="w-full font-bold py-4 rounded-xl transition shadow-lg btn-premium-breath flex justify-center items-center gap-2"
                                 :class="buyPrice > 0 ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-blue-900/50' : 'bg-gray-700 text-gray-500 cursor-not-allowed'">
                                 <span>记录当前价格</span>
                                 <span v-if="isRecording" class="animate-spin">⏳</span>
@@ -1179,42 +1304,63 @@
 
                     <!-- 汇总信息面板 (确保 Grid 独立) -->
                     <div v-if="holdingsSummary.count > 0"
-                        class="px-6 py-6 grid grid-cols-2 lg:grid-cols-4 gap-6 bg-gradient-to-b from-transparent to-black/10 border-b border-white/5 relative overflow-hidden">
+                        class="px-6 py-6 grid grid-cols-2 xl:grid-cols-5 gap-4 bg-gradient-to-b from-transparent to-black/10 border-b border-white/5 relative overflow-hidden">
                         <!-- 背景光晕 -->
                         <div
-                            class="absolute -right-16 -top-16 w-32 h-32 bg-blue-500/10 blur-[60px] pointer-events-none rotate-45">
+                            class="absolute -right-16 -top-16 w-32 h-32 bg-blue-500/10 blur-[60px] pointer-events-none rotate-45 animate-subtle-float">
                         </div>
-                        <div
-                            class="absolute -left-20 -bottom-20 w-40 h-40 bg-purple-500/5 blur-[80px] pointer-events-none">
+                        <div class="absolute -left-20 -bottom-20 w-40 h-40 bg-purple-500/5 blur-[80px] pointer-events-none animate-subtle-float"
+                            style="animation-delay: -3s;">
                         </div>
 
-                        <div class="flex flex-col justify-center px-2">
-                            <span
-                                class="text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-2 font-black">资产成本</span>
+                        <div
+                            class="flex flex-col justify-center px-3 py-3 rounded-lg bg-black/10 border border-white/5 hover:bg-black/20 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 cursor-default">
+                            <span class="text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-1">资产成本</span>
                             <div class="flex items-baseline gap-1.5">
-                                <span class="text-2xl font-bold font-mono text-gray-300 tracking-tighter">{{
+                                <span class="text-xl font-bold font-mono text-gray-300 tracking-tighter">{{
                                     holdingsSummary.total_cost.toFixed(0) }}</span>
                                 <span class="text-[9px] text-gray-700 font-bold font-mono">CNY</span>
                             </div>
                         </div>
 
-                        <div class="flex flex-col justify-center px-2 border-l border-white/[0.03]">
-                            <span
-                                class="text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-2 font-black">当前市值</span>
+                        <div
+                            class="flex flex-col justify-center px-3 py-3 rounded-lg bg-black/10 border border-white/5 hover:bg-black/20 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 cursor-default">
+                            <span class="text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-1">当前市值</span>
                             <div class="flex items-baseline gap-1.5">
-                                <span class="text-2xl font-bold font-mono text-blue-400 tracking-tighter">{{
+                                <span class="text-xl font-bold font-mono text-blue-400 tracking-tighter">{{
                                     holdingsSummary.total_value.toFixed(0) }}</span>
                                 <span class="text-[9px] text-blue-900 font-bold font-mono uppercase">CNY</span>
                             </div>
                         </div>
 
-                        <!-- 累计盈亏 (带背景色块强调设计) -->
-                        <div class="flex flex-col p-4 rounded-xl bg-black/20 border border-white/5">
-                            <span
-                                class="text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-2 font-black">预期收益</span>
+                        <!-- 预估今日收益 -->
+                        <div
+                            class="flex flex-col justify-center px-3 py-3 rounded-lg bg-black/10 border border-white/5 hover:bg-black/20 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 cursor-default">
+                            <span class="text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-1">预估今日收益</span>
                             <div class="flex items-baseline gap-1.5">
-                                <span class="text-3xl font-black font-mono leading-none tracking-tighter"
-                                    :class="holdingsSummary.total_profit >= 0 ? 'text-red-500' : 'text-green-500'">
+                                <span
+                                    class="text-xl font-black font-mono tracking-tighter transition-colors duration-300"
+                                    :class="[
+                                        (holdingsSummary.total_today_profit || totalTodayProfit) >= 0 ? 'text-red-500' : 'text-green-500',
+                                        holdingsPulse.todayProfit ? 'animate-number-pulse' : ''
+                                    ]">
+                                    {{ (holdingsSummary.total_today_profit || totalTodayProfit) >= 0 ? '+' : '' }}{{
+                                    (holdingsSummary.total_today_profit || totalTodayProfit).toFixed(0) }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- 累计盈亏 (带背景色块强调设计) -->
+                        <div
+                            class="flex flex-col justify-center px-3 py-3 rounded-lg bg-black/10 border border-white/5 hover:bg-black/20 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 cursor-default">
+                            <span class="text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-1">预期收益</span>
+                            <div class="flex items-baseline gap-1.5">
+                                <span
+                                    class="text-xl font-black font-mono tracking-tighter transition-colors duration-300"
+                                    :class="[
+                                        holdingsSummary.total_profit >= 0 ? 'text-red-500' : 'text-green-500',
+                                        holdingsPulse.totalProfit ? 'animate-number-pulse' : ''
+                                    ]">
                                     {{ holdingsSummary.total_profit >= 0 ? '+' : '' }}{{
                                     holdingsSummary.total_profit.toFixed(0) }}
                                 </span>
@@ -1222,12 +1368,16 @@
                         </div>
 
                         <!-- 总收益率 (强调设计) -->
-                        <div class="flex flex-col p-4 rounded-xl bg-black/20 border border-white/5">
-                            <span
-                                class="text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-2 font-black">投资回报</span>
+                        <div
+                            class="flex flex-col justify-center px-3 py-3 rounded-lg bg-black/10 border border-white/5 hover:bg-black/20 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 cursor-default">
+                            <span class="text-[10px] uppercase tracking-[0.2em] text-gray-600 mb-1">投资回报</span>
                             <div class="flex items-baseline gap-1">
-                                <span class="text-3xl font-black font-mono leading-none tracking-tighter"
-                                    :class="holdingsSummary.total_profit_rate >= 0 ? 'text-red-500' : 'text-green-500'">
+                                <span
+                                    class="text-xl font-black font-mono tracking-tighter transition-colors duration-300"
+                                    :class="[
+                                        holdingsSummary.total_profit_rate >= 0 ? 'text-red-500' : 'text-green-500',
+                                        holdingsPulse.profitRate ? 'animate-number-pulse' : ''
+                                    ]">
                                     {{ holdingsSummary.total_profit_rate >= 0 ? '+' : '' }}{{
                                     holdingsSummary.total_profit_rate.toFixed(2) }}<span
                                         class="text-xs ml-0.5 opacity-60">%</span>
@@ -1962,8 +2112,20 @@
                         confirmText: '确定',
                         confirmButtonClass: '',
                         resolve: null // Promise resolve function
-                    }
+                    },
                     // chartInstance 已移除，避免 Vue 代理导致的图表卡死问题
+
+                    // 数字动画状态
+                    holdingsPulse: {
+                        todayProfit: false,
+                        totalProfit: false,
+                        profitRate: false,
+                        timers: {
+                            todayProfit: null,
+                            totalProfit: null,
+                            profitRate: null
+                        }
+                    }
                 }
             },
             created() {
@@ -2000,9 +2162,30 @@
                         // 使用智能轮询（根据交易状态调整间隔）
                         this.startPricePolling();
                     }
+                },
+                holdingsSummary: {
+                    handler(newVal, oldVal) {
+                        if (!oldVal) return;
+                        if (newVal.count === 0 && oldVal.count === 0) return;
+                        if (newVal.count === oldVal.count) {
+                            if (newVal.total_today_profit !== oldVal.total_today_profit) {
+                                this.triggerPulse('todayProfit');
+                            }
+                            if (newVal.total_profit !== oldVal.total_profit) {
+                                this.triggerPulse('totalProfit');
+                            }
+                            if (newVal.total_profit_rate !== oldVal.total_profit_rate) {
+                                this.triggerPulse('profitRate');
+                            }
+                        }
+                    },
+                    deep: true
                 }
             },
             computed: {
+                totalTodayProfit() {
+                    return this.holdings.reduce((sum, h) => sum + (h.today_profit || 0), 0);
+                },
                 portfolioContribution() {
                     const holdings = this.portfolioDrawer.holdings || [];
                     const meta = this.portfolioDrawer.meta || {};
@@ -2116,6 +2299,23 @@
                 }
             },
             methods: {
+                // 数字脉冲动画触发方法
+                triggerPulse(field) {
+                    const timer = this.holdingsPulse.timers[field];
+                    if (timer) {
+                        clearTimeout(timer);
+                        this.holdingsPulse.timers[field] = null;
+                    }
+                    this.holdingsPulse[field] = false;
+                    this.$nextTick(() => {
+                        this.holdingsPulse[field] = true;
+                    });
+                    this.holdingsPulse.timers[field] = setTimeout(() => {
+                        this.holdingsPulse[field] = false;
+                        this.holdingsPulse.timers[field] = null;
+                    }, 1000);
+                },
+
                 // ==================== 交易状态管理 ====================
                 async fetchTradingStatus(type = 'gold') {
                     try {
@@ -2218,7 +2418,7 @@
 
                     // 根据交易状态设置轮询间隔
                     const interval = this.tradingStatus.is_trading_time ? 5000 : 300000; // 5秒或5分钟
-                    
+
                     this.priceTimer = setInterval(() => {
                         this?.fetchPrice?.();
                     }, interval);
@@ -2240,7 +2440,7 @@
 
                 adjustPollingInterval() {
                     if (this.currentView !== 'gold') return;
-                    
+
                     // 只在间隔真正变化时才重启定时器
                     const newInterval = this.tradingStatus.is_trading_time ? 5000 : 300000;
                     if (this.lastPriceInterval !== newInterval) {
@@ -2251,7 +2451,7 @@
 
                 adjustFundPollingInterval() {
                     if (this.currentView !== 'fund') return;
-                    
+
                     // 只在间隔真正变化时才重启定时器
                     const newInterval = this.fundTradingStatus.is_trading_time ? 3000 : 300000;
                     if (this.lastFundInterval !== newInterval) {

@@ -213,6 +213,10 @@ def build_holdings_response(holdings, fund_data_list, cached_map):
 
     total_profit = total_value - total_cost
     total_profit_rate = (total_profit / total_cost * 100) if total_cost > 0 else 0
+    total_today_profit = sum(
+        round(r.get('today_profit', 0), 2)
+        for r in results if r.get('data_available')
+    )
 
     return {
         "success": True,
@@ -221,6 +225,7 @@ def build_holdings_response(holdings, fund_data_list, cached_map):
             "total_cost": round(total_cost, 2),
             "total_value": round(total_value, 2),
             "total_profit": round(total_profit, 2),
+            "total_today_profit": total_today_profit,
             "total_profit_rate": round(total_profit_rate, 2),
             "count": len(results)
         },
