@@ -756,8 +756,7 @@
                 opacity: 0;
             }
         }
-
-        </style>
+    </style>
 </head>
 
 <body
@@ -788,100 +787,187 @@
             </button>
         </nav>
 
-
-        <!-- 金价视图 -->
-        <div v-if="currentView === 'gold'" class="pt-14">
-            <!-- 初始加载遮罩 -->
-            <transition name="fade">
-                <div v-if="isInitialLoading"
-                    class="fixed inset-0 z-[100] bg-gray-900 flex flex-col items-center justify-center">
-                    <div
-                        class="w-16 h-16 border-4 border-yellow-500/20 border-t-yellow-500 rounded-full animate-spin mb-4">
-                    </div>
-                    <p class="text-yellow-500 font-bold animate-pulse">正在连接数据源...</p>
+        <!-- 全局蒙层与头部 -->
+        <!-- 初始加载遮罩 -->
+        <transition name="fade">
+            <div v-if="isInitialLoading"
+                class="fixed inset-0 z-[100] bg-gray-900 flex flex-col items-center justify-center">
+                <div class="w-16 h-16 border-4 border-yellow-500/20 border-t-yellow-500 rounded-full animate-spin mb-4">
                 </div>
-            </transition>
+                <p class="text-yellow-500 font-bold animate-pulse">正在连接数据源...</p>
+            </div>
+        </transition>
 
-            <!-- 严重错误遮罩 (仅在完全无法获取数据时显示) -->
-            <transition name="fade">
-                <div v-if="fetchError && !isInitialLoading"
-                    class="fixed inset-0 z-[90] bg-gray-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
-                    <div class="text-6xl mb-6">📡</div>
-                    <h2 class="text-2xl font-bold text-white mb-2">服务暂时不可用</h2>
-                    <p class="text-gray-400 mb-8 max-w-md">{{ fetchError }}。请检查网络连接或稍后再试。</p>
-                    <button @click="fetchPrice"
-                        class="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-8 py-3 rounded-xl transition-all shadow-lg active:scale-95">
-                        手动重试
-                    </button>
-                    <p class="mt-4 text-xs text-gray-600">Au99.99 实时监控系统</p>
-                </div>
-            </transition>
+        <!-- 严重错误遮罩 (仅在完全无法获取数据时显示) -->
+        <transition name="fade">
+            <div v-if="fetchError && !isInitialLoading"
+                class="fixed inset-0 z-[90] bg-gray-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+                <div class="text-6xl mb-6">📡</div>
+                <h2 class="text-2xl font-bold text-white mb-2">服务暂时不可用</h2>
+                <p class="text-gray-400 mb-8 max-w-md">{{ fetchError }}。请检查网络连接或稍后再试。</p>
+                <button @click="fetchPrice"
+                    class="bg-yellow-500 hover:bg-yellow-400 text-black font-bold px-8 py-3 rounded-xl transition-all shadow-lg active:scale-95">
+                    手动重试
+                </button>
+                <p class="mt-4 text-xs text-gray-600">Au99.99 实时监控系统</p>
+            </div>
+        </transition>
 
-            <!-- 顶部标题栏 -->
-            <header class="fixed top-14 left-0 right-0 z-50 bg-[#0b0f19] border-b border-white/5 py-4 px-6 shadow-sm">
-                <div class="max-w-7xl mx-auto flex justify-between items-center">
-                    <div class="flex-1 flex items-center gap-3">
-                        <div class="flex flex-col">
-                            <h1 class="text-xl font-extrabold text-[#facc15] hidden sm:block tracking-tight"
-                                :class="{'title-breath-active': tradingStatus.is_trading_time}">Au99.99
-                                实时监控</h1>
-                            <h1 class="text-lg font-extrabold text-[#facc15] sm:hidden">Au99.99</h1>
-                            <p class="text-gray-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">
-                                {{
-                                currentData.source || 'SGE' }}行情数据</p>
-                        </div>
-
-                        <!-- 紧凑型状态胶囊 -->
-                        <div v-if="currentView === 'gold'" class="status-pill ml-2"
-                            :class="{ 'active': tradingStatus.is_trading_time, 'holiday': tradingStatus.is_holiday }"
-                            :title="tradingStatus.phase_name + (tradingStatus.time_until_next ? ' | ' + formatCountdown(tradingStatus.time_until_next) + '后' + (tradingStatus.next_event && (tradingStatus.next_event.includes('open') || tradingStatus.next_event.includes('auction')) ? '开市' : '收市') : '')">
-                            <div class="led-dot"
-                                :class="{ 'active': tradingStatus.is_trading_time, 'holiday': tradingStatus.is_holiday }">
-                            </div>
-                            <span class="pill-phase"
-                                :class="{ 'text-emerald-400': tradingStatus.is_trading_time, 'text-amber-400': tradingStatus.is_holiday }">{{
-                                tradingStatus.phase_name }}</span>
-                            <div class="pill-details">
-                                <span class="w-px h-2.5 bg-white/10"></span>
-                                <span class="text-[10px]">{{ tradingStatus.weekday_name }}</span>
-                                <template v-if="tradingStatus.time_until_next">
-                                    <span class="w-px h-2.5 bg-white/10"></span>
-                                    <span class="font-mono">{{ formatCountdown(tradingStatus.time_until_next) }}</span>
-                                    <span class="text-[9px] opacity-70">{{ tradingStatus.next_event &&
-                                        (tradingStatus.next_event.includes('open') ||
-                                        tradingStatus.next_event.includes('auction')) ? '开市' : '收市' }}</span>
-                                </template>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="flex-1 flex justify-center items-center">
-                        <div class="bg-black/20 px-4 py-1.5 rounded-xl border border-white/5 price-container-breath flex items-center gap-3 hw-accel"
-                            :class="{'pop-effect': priceAnimating}">
-                            <span class="text-2xl font-black font-mono tracking-tighter transition-colors duration-300"
-                                :class="isPriceUp ? 'text-red-500 price-text-breath-up' : 'text-green-500 price-text-breath-down'">
-                                {{ formatPrice(currentData.price) }}
-                            </span>
-                            <span class="text-xs font-black font-mono px-2 py-0.5 rounded bg-white/5"
-                                :class="isPriceUp ? 'text-red-400 price-text-breath-up' : 'text-green-400 price-text-breath-down'">
-                                {{ currentData.change >= 0 ? '+' : '' }}{{ currentData.change }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="flex-1 text-right">
-                        <p
-                            class="text-gray-600 text-[10px] uppercase font-bold tracking-widest leading-none mb-1 hidden sm:block">
-                            更新时间</p>
-                        <p class="text-sm sm:text-lg font-mono font-bold text-gray-400"
-                            :class="{'time-pop': timeAnimating}">
-                            {{ currentData.time_str || '--:--:--' }}
+        <!-- 顶部标题栏 (全局固定) -->
+        <header class="fixed top-14 left-0 right-0 z-50 bg-[#0b0f19] border-b border-white/5 py-4 px-6 shadow-sm">
+            <div class="max-w-7xl mx-auto flex justify-between items-center">
+                <div class="flex-1 flex items-center gap-3">
+                    <div class="flex flex-col">
+                        <h1 class="text-xl font-extrabold tracking-tight hidden sm:block"
+                            :class="currentView === 'gold' ? 'text-[#facc15]' : 'text-blue-500'">
+                            {{ currentView === 'gold' ? 'Au99.99' : '基金估值' }}
+                        </h1>
+                        <h1 class="text-lg font-extrabold sm:hidden"
+                            :class="currentView === 'gold' ? 'text-[#facc15]' : 'text-blue-500'">
+                            {{ currentView === 'gold' ? 'Au99.99' : '基金' }}
+                        </h1>
+                        <p class="text-gray-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">
+                            {{ currentView === 'gold' ? (currentData.source || 'SGE') + '行情数据' : '实时估值监控' }}
                         </p>
                     </div>
-                </div>
-            </header>
 
-            <main class="max-w-7xl mx-auto p-6 pt-32">
+                    <!-- 紧凑型状态胶囊 (黄金) -->
+                    <div v-if="currentView === 'gold'" class="status-pill ml-2"
+                        :class="{ 'active': tradingStatus.is_trading_time, 'holiday': tradingStatus.is_holiday }"
+                        :title="tradingStatus.phase_name + (tradingStatus.time_until_next ? ' | ' + formatCountdown(tradingStatus.time_until_next) + '后' + (tradingStatus.next_event && (tradingStatus.next_event.includes('open') || tradingStatus.next_event.includes('auction')) ? '开市' : '收市') : '')">
+                        <div class="led-dot"
+                            :class="{ 'active': tradingStatus.is_trading_time, 'holiday': tradingStatus.is_holiday }">
+                        </div>
+                        <span class="pill-phase"
+                            :class="{ 'text-emerald-400': tradingStatus.is_trading_time, 'text-amber-400': tradingStatus.is_holiday }">{{
+                            tradingStatus.phase_name }}</span>
+                        <div class="pill-details">
+                            <span class="w-px h-2.5 bg-white/10"></span>
+                            <span class="text-[10px]">{{ tradingStatus.weekday_name }}</span>
+                            <template v-if="tradingStatus.time_until_next">
+                                <span class="w-px h-2.5 bg-white/10"></span>
+                                <span class="font-mono">{{ formatCountdown(tradingStatus.time_until_next) }}</span>
+                                <span class="text-[9px] opacity-70">{{ tradingStatus.next_event &&
+                                    (tradingStatus.next_event.includes('open') ||
+                                    tradingStatus.next_event.includes('auction')) ? '开市' : '收市' }}</span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- 紧凑型状态胶囊 (基金) -->
+                    <div v-if="currentView === 'fund'" class="status-pill ml-2"
+                        :class="{ 'active': fundTradingStatus.is_trading_time, 'holiday': fundTradingStatus.is_holiday }"
+                        :title="fundTradingStatus.phase_name">
+                        <div class="led-dot"
+                            :class="{ 'active': fundTradingStatus.is_trading_time, 'holiday': fundTradingStatus.is_holiday }">
+                        </div>
+                        <span class="pill-phase"
+                            :class="{ 'text-emerald-400': fundTradingStatus.is_trading_time, 'text-amber-400': fundTradingStatus.is_holiday }">{{
+                            fundTradingStatus.phase_name }}</span>
+                        <div class="pill-details">
+                            <span class="w-px h-2.5 bg-white/10"></span>
+                            <span class="text-[10px]">{{ fundTradingStatus.weekday_name }}</span>
+                            <template v-if="fundTradingStatus.time_until_next">
+                                <span class="w-px h-2.5 bg-white/10"></span>
+                                <span class="font-mono">{{ formatCountdown(fundTradingStatus.time_until_next) }}</span>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- 交易状态提醒开关 -->
+                    <button @click="settings.trading_events_enabled = !settings.trading_events_enabled; saveSettings()"
+                        class="p-2 rounded-full transition-all duration-300 ml-1 flex items-center justify-center"
+                        :class="[
+                            settings.trading_events_enabled 
+                                ? (currentView === 'gold' ? 'text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20' : 'text-blue-400 bg-blue-400/10 hover:bg-blue-400/20') 
+                                : 'text-gray-500 bg-gray-800/50 hover:bg-gray-800'
+                        ]" :title="settings.trading_events_enabled ? '状态提醒已开启' : '状态提醒已禁用'">
+                        <!-- 线性精致图标 (开启状态) -->
+                        <svg v-if="settings.trading_events_enabled" xmlns="http://www.w3.org/2000/svg" fill="none"
+                            viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" class="w-5 h-5">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                        </svg>
+                        <!-- 线性精致图标 (禁用状态) - 使用 MASK 技术实现完美的“破损”切割效果，更精致 -->
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                            stroke-width="1.6" stroke="currentColor" class="w-5 h-5 opacity-40">
+                            <defs>
+                                <mask id="bell-off-mask">
+                                    <rect width="24" height="24" fill="white" />
+                                    <!-- 黑色线条在 Mask 中代表“剪掉”，stroke-width 略大以创造精致的间隙 -->
+                                    <path d="M3 3l18 18" stroke="black" stroke-width="3" stroke-linecap="round" />
+                                </mask>
+                            </defs>
+                            <g mask="url(#bell-off-mask)">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                    d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                            </g>
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 3l18 18" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="flex-1 flex justify-center items-center">
+                    <!-- 金价显示 (黄金视角) -->
+                    <div v-if="currentView === 'gold'"
+                        class="bg-black/20 px-4 py-1.5 rounded-xl border border-white/5 price-container-breath flex items-center gap-3 hw-accel"
+                        :class="{'pop-effect': priceAnimating}">
+                        <span class="text-2xl font-black font-mono tracking-tighter transition-colors duration-300"
+                            :class="isPriceUp ? 'text-red-500 price-text-breath-up' : 'text-green-500 price-text-breath-down'">
+                            {{ formatPrice(currentData.price) }}
+                        </span>
+                        <span class="text-xs font-black font-mono px-2 py-0.5 rounded bg-white/5"
+                            :class="isPriceUp ? 'text-red-400 price-text-breath-up' : 'text-green-400 price-text-breath-down'">
+                            {{ currentData.change >= 0 ? '+' : '' }}{{ currentData.change }}
+                        </span>
+                    </div>
+
+                    <!-- 盈亏摘要 (基金视角) -->
+                    <div v-if="currentView === 'fund'"
+                        class="bg-black/20 px-4 py-1.5 rounded-xl border border-white/5 flex items-center gap-4 hw-accel">
+                        <div class="flex flex-col items-center">
+                            <span class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">预估今日收益</span>
+                            <span class="text-lg font-black font-mono"
+                                :class="(holdingsSummary.total_today_profit || 0) >= 0 ? 'text-red-500' : 'text-green-500'">
+                                {{ (holdingsSummary.total_today_profit || 0) >= 0 ? '+' : '' }}{{
+                                (holdingsSummary.total_today_profit || 0).toFixed(0) }}
+                            </span>
+                        </div>
+                        <div class="w-px h-8 bg-white/10"></div>
+                        <div class="flex flex-col items-center">
+                            <span class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">总盈亏</span>
+                            <span class="text-lg font-black font-mono"
+                                :class="holdingsSummary.total_profit >= 0 ? 'text-red-500' : 'text-green-500'">
+                                {{ holdingsSummary.total_profit >= 0 ? '+' : '' }}{{
+                                holdingsSummary.total_profit.toFixed(0) }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 text-right">
+                    <p
+                        class="text-gray-600 text-[10px] uppercase font-bold tracking-widest leading-none mb-1 hidden sm:block">
+                        {{ currentView === 'gold' ? '更新时间' : '最后动态' }}</p>
+                    <p class="text-sm sm:text-lg font-mono font-bold text-gray-400"
+                        :class="{'time-pop': timeAnimating}">
+                        {{ currentView === 'gold' ? (currentData.time_str || '--:--:--') : holdingsLastUpdate }}
+                    </p>
+                </div>
+            </div>
+        </header>
+
+        <!-- 页面状态指示器 (全局) -->
+        <div
+            class="fixed bottom-4 right-4 flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full shadow-lg border border-gray-700 z-50">
+            <span class="w-3 h-3 rounded-full transition-colors duration-300"
+                :class="[isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500']"></span>
+            <span class="text-sm font-medium">{{ isConnected ? '实时监控中' : '连接中断' }}</span>
+        </div>
+
+        <!-- 金价视图内容 -->
+        <div v-if="currentView === 'gold'" class="pt-32">
+            <main class="max-w-7xl mx-auto p-6">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
                     <!-- 左侧：实时价格面板 -->
@@ -1224,17 +1310,11 @@
                 </div>
             </main>
 
-            <!-- 状态指示器 -->
-            <div
-                class="fixed bottom-4 right-4 flex items-center gap-2 bg-gray-800 px-4 py-2 rounded-full shadow-lg border border-gray-700 z-50">
-                <span class="w-3 h-3 rounded-full transition-colors duration-300"
-                    :class="[isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500']"></span>
-                <span class="text-sm font-medium">{{ isConnected ? '实时连接中' : '连接中断' }}</span>
-            </div>
+            <!-- 状态指示器相关 (已移至顶部) -->
         </div>
 
-        <!-- 基金视图 -->
-        <div v-if="currentView === 'fund'" class="pt-14 max-w-7xl mx-auto min-h-screen">
+        <!-- 基金视图内容 -->
+        <div v-if="currentView === 'fund'" class="pt-32 max-w-7xl mx-auto min-h-screen">
 
 
             <div class="px-4 pt-4">
@@ -1257,32 +1337,7 @@
                                         holdingsLastUpdate }}</span>
                                 </div>
                             </div>
-                            <!-- 市场脉搏：基金交易状态 (基础尺寸优化) -->
-                            <div class="flex items-center gap-5 bg-black/30 px-5 py-2.5 rounded-2xl border border-white/5 shadow-inner transition-all duration-500"
-                                :class="fundTradingStatus.is_trading_time ? 'animate-breath-live' : 'animate-breath-closed'">
-                                <div class="relative flex h-3 w-3">
-                                    <span v-if="fundTradingStatus.is_trading_time"
-                                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-500 opacity-40"></span>
-                                    <span class="relative inline-flex rounded-full h-3 w-3"
-                                        :class="fundTradingStatus.is_trading_time ? 'bg-blue-500' : 'bg-gray-600'"></span>
-                                </div>
-                                <div class="flex flex-col">
-                                    <span class="text-[12px] font-black uppercase tracking-widest leading-none"
-                                        :class="fundTradingStatus.is_trading_time ? 'text-blue-400' : 'text-gray-500'">
-                                        {{ fundTradingStatus.is_trading_time ? '交易中' : '已收盘' }}
-                                    </span>
-                                </div>
-
-                                <!-- 倒计时 (默认显示 - 基础尺寸加强) -->
-                                <div
-                                    class="flex items-center gap-3 ml-4 pl-4 border-l border-white/15 transition-all duration-300">
-                                    <span class="text-[11px] text-gray-400 font-medium">
-                                        {{ fundTradingStatus.is_trading_time ? '距闭市' : '距开盘' }}
-                                    </span>
-                                    <span class="text-[13px] text-blue-300 font-mono font-bold">{{
-                                        formatCountdown(fundTradingStatus.time_until_next) }}</span>
-                                </div>
-                            </div>
+                            <div class="w-px h-8 bg-white/10 mx-2"></div>
 
                         </div>
 
@@ -1997,7 +2052,6 @@
                     fundFilterText: '',
                     fundSortMode: 'default', // 'default' | 'gain' | 'loss'
                     isAddingFund: false,
-                    fundTimer: null,
 
                     // 持仓数据
                     holdings: [],
@@ -2060,7 +2114,6 @@
                     lastPriceInterval: null,   // 上次金价轮询间隔
                     lastFundInterval: null,    // 上次基金轮询间隔
                     tempBuyPrice: null, // 用于输入框获取焦点时暂存数据
-                    priceAnimating: false, // 控制价格跳动动画
                     chartSwitching: false, // 控制图表切换动画
                     timeAnimating: false, // 控制时间更新动画
                     priceAnimTimer: null, // 动画定时器引用
@@ -2069,7 +2122,8 @@
                     settings: {
                         high: 0,
                         low: 0,
-                        enabled: false
+                        enabled: false,
+                        trading_events_enabled: true
                     },
                     lastNotifiedTime: 0, // 上次通知时间
 
@@ -2139,7 +2193,7 @@
                         document.body.style.overflow = '';
                     }
                 },
-                currentView(newVal) {
+                async currentView(newVal) {
                     if (newVal === 'fund') {
                         // 切换到基金视图时，销毁图表实例防止残留
                         if (this.chartInstance) {
@@ -2147,18 +2201,22 @@
                             this.chartInstance = null;
                         }
 
+                        // 获取基金交易状态（等待完成后再启动轮询）
+                        await this.fetchTradingStatus('fund');
+
                         this.fetchFunds(true);
                         this.fetchHoldings(true); // 加载持仓数据
-                        this.fetchTradingStatus('fund'); // 获取基金交易状态
 
                         // 基金页轮询间隔
                         this.startFundPolling();
                     } else {
-                        // 切换回金价视图时，立即刷新历史数据以填补断档
-                        this.fetchHistory();
+                        // 切换回金价视图时，先获取交易状态（等待完成）
+                        await this.fetchTradingStatus('gold');
 
+                        // 刷新历史数据以填补断档
+                        this.fetchHistory();
                         this.fetchPrice();
-                        this.fetchTradingStatus('gold'); // 获取黄金交易状态
+
                         // 使用智能轮询（根据交易状态调整间隔）
                         this.startPricePolling();
                     }
@@ -2299,6 +2357,20 @@
                 }
             },
             methods: {
+                // 格式化方法
+                formatPrice(price) {
+                    if (price === undefined || price === null || isNaN(price)) return '--';
+                    return parseFloat(price).toFixed(2);
+                },
+                formatAmount(amount) {
+                    if (amount === undefined || amount === null || isNaN(amount)) return '--';
+                    return parseFloat(amount).toFixed(2);
+                },
+                formatPercent(val) {
+                    if (val === undefined || val === null || isNaN(val)) return '0.00';
+                    return (val >= 0 ? '+' : '') + parseFloat(val).toFixed(2);
+                },
+
                 // 数字脉冲动画触发方法
                 triggerPulse(field) {
                     const timer = this.holdingsPulse.timers[field];
@@ -2372,12 +2444,15 @@
                             } else {
                                 eventMap = {
                                     'closed_trading': { name: '基金市场开盘', icon: '📈' },
+                                    'trading_lunch_break': { name: '基金午间休市', icon: '🌅' },
+                                    'lunch_break_trading': { name: '基金下午开盘', icon: '📈' },
                                     'trading_closed': { name: '基金市场收盘', icon: '📉' }
                                 };
                             }
 
+
                             const eventKey = `${oldPhase}_${newPhase}`;
-                            if (eventMap[eventKey]) {
+                            if (this.settings.trading_events_enabled && eventMap[eventKey]) {
                                 const event = eventMap[eventKey];
                                 this.showTradingNotification(`${type === 'gold' ? '黄金' : '基金'} ${event.name}`, event.icon);
                             }
@@ -2399,7 +2474,8 @@
                 showTradingNotification(eventName, icon) {
                     // 浏览器通知
                     if ('Notification' in window && Notification.permission === 'granted') {
-                        new Notification('Au99.99 交易提醒', {
+                        const title = eventName.includes('黄金') ? 'Au99.99 交易提醒' : (eventName.includes('基金') ? '基金估值 交易提醒' : '交易状态提醒');
+                        new Notification(title, {
                             body: `${icon} ${eventName}`,
                             icon: '/favicon.ico',
                             requireInteraction: true
@@ -2419,6 +2495,9 @@
                     // 根据交易状态设置轮询间隔
                     const interval = this.tradingStatus.is_trading_time ? 5000 : 300000; // 5秒或5分钟
 
+                    // 立即执行一次，然后启动定时器
+                    this.fetchPrice();
+
                     this.priceTimer = setInterval(() => {
                         this?.fetchPrice?.();
                     }, interval);
@@ -2431,6 +2510,11 @@
 
                     // 根据交易状态设置轮询间隔
                     const interval = this.fundTradingStatus.is_trading_time ? 3000 : 300000; // 交易时间 3秒，非交易时间 5分钟
+
+                    // 立即执行一次，然后启动定时器
+                    this.fetchFunds(true);
+                    this.fetchHoldings(true, true);
+
                     this.fundTimer = setInterval(() => {
                         this.fetchFunds(true);
                         this.fetchHoldings(true, true);
@@ -2504,50 +2588,11 @@
                         this.chartInstance.update('none');
                     }
                 },
-                formatPrice(val) {
-                    return val ? Number(val).toFixed(2) : '--';
-                },
-                setChartViewMode(mode) {
-                    if (this.chartViewMode === mode) return;
 
-                    // 开启切换动画 (淡出)
-                    this.chartSwitching = true;
-
-                    setTimeout(() => {
-                        this.chartViewMode = mode;
-                        if (this.chartInstance) {
-                            const chartData = this.processDataForChart(this.historyData);
-                            this.chartInstance.data.datasets[0].data = chartData;
-
-                            // 更新轴范围
-                            const now = Date.now() / 1000;
-                            if (mode === '30M') {
-                                this.chartInstance.options.scales.x.min = now - 1800;
-                                this.chartInstance.options.scales.x.max = now;
-                            } else {
-                                this.chartInstance.options.scales.x.min = undefined;
-                                this.chartInstance.options.scales.x.max = undefined;
-                            }
-
-                            // 使用 'none' 禁用线条位移补间动画，避免交织
-                            this.chartInstance.update('none');
-                        }
-
-                        // 结束切换动画 (淡入)
-                        setTimeout(() => {
-                            this.chartSwitching = false;
-                        }, 50);
-                    }, 300); // 对应 transition-opacity 时长
-                },
-                processDataForChart(rawData) {
-                    if (!rawData || rawData.length === 0) return [];
-
+                processDataForChart(sortedData) {
+                    if (!sortedData || sortedData.length === 0) return [];
                     const now = Date.now() / 1000;
-                    const maxGap = 10 * 60; // 10分钟没有数据视为断档
-
-                    // 按时间排序
-                    const sortedData = [...rawData].sort((a, b) => a.timestamp - b.timestamp);
-
+                    const maxGap = 600; // 10分钟断档
                     let filteredData = [];
 
                     if (this.chartViewMode === '30M') {
@@ -2641,7 +2686,7 @@
 
                             // 仅当价格发生变化或首次加载时才触发动画
                             const priceChanged = this.currentData.price !== data.data.price;
-                            const timeChanged = this.currentData.time_str !== data.data.time_str;
+                            const timeChanged = this.currentData.timestamp !== data.data.timestamp;
 
                             this.currentData = data.data;
 
@@ -2698,7 +2743,13 @@
                         const data = await res.json();
                         if (data.success) {
                             this.historyData = data.data;
-                            this.initChart();
+                            // 确保DOM已渲染后再初始化图表
+                            this.$nextTick(() => {
+                                const canvas = document.getElementById('priceChart');
+                                if (canvas && !this.chartInstance) {
+                                    this.initChart();
+                                }
+                            });
                         }
                     } catch (e) { console.error(e); }
                 },
@@ -3089,7 +3140,15 @@
                 },
 
                 updateChartData(newData) {
-                    if (!this.chartInstance) return;
+                    // 如果图表未初始化，尝试初始化
+                    if (!this.chartInstance) {
+                        const canvas = document.getElementById('priceChart');
+                        if (canvas && this.historyData.length > 0) {
+                            this.initChart();
+                        }
+                        return;
+                    }
+
                     this.historyData.push(newData);
                     const now = Date.now() / 1000;
                     if (this.historyData.length > 1000) {

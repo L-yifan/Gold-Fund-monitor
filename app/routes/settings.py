@@ -23,6 +23,7 @@ def handle_settings():
             alert_settings["high"] = float(req_data.get('high', 0))
             alert_settings["low"] = float(req_data.get('low', 0))
             alert_settings["enabled"] = bool(req_data.get('enabled', False))
+            alert_settings["trading_events_enabled"] = bool(req_data.get('trading_events_enabled', True))
         save_data()
         return jsonify({"success": True, "settings": alert_settings})
     

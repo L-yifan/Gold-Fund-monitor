@@ -218,6 +218,18 @@ def build_holdings_response(holdings, fund_data_list, cached_map):
         for r in results if r.get('data_available')
     )
 
+    # 计算最新的数据更新时间
+    latest_update_time = ""
+    for r in results:
+        t = r.get('time_str')
+        if t and t != '--':
+            if not latest_update_time or t > latest_update_time:
+                latest_update_time = t
+    
+    # 如果没有找到任何有效的基金更新时间，则使用系统当前时间
+    if not latest_update_time:
+        latest_update_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
     return {
         "success": True,
         "data": results,
@@ -229,7 +241,7 @@ def build_holdings_response(holdings, fund_data_list, cached_map):
             "total_profit_rate": round(total_profit_rate, 2),
             "count": len(results)
         },
-        "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "last_update": latest_update_time
     }
 
 

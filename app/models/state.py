@@ -25,7 +25,8 @@ manual_records = []
 alert_settings = {
     "high": 0,
     "low": 0,
-    "enabled": False
+    "enabled": False,
+    "trading_events_enabled": True
 }
 
 # ==================== 基金相关状态 ====================
