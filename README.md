@@ -8,6 +8,45 @@
 ![TailwindCSS](https://img.shields.io/badge/tailwindcss-3.x-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
+## 快速开始
+
+### 1. 环境准备
+需要 Python 3.8 或更高版本。
+
+**自动环境检测**：
+项目启动时会按以下优先级自动检测 Python 环境：
+1. `launcher.ini` 中配置的 `python_path`
+2. 本地 `venv/Scripts/python.exe` 虚拟环境
+3. 本地 `.venv/Scripts/python.exe` 虚拟环境
+4. 系统 `python` 命令
+
+### 2. 安装依赖
+```bash
+pip install -r requirements.txt
+```
+
+**依赖说明**：仅需两个核心依赖包
+- `flask>=2.0.0` - Web 框架
+- `requests>=2.25.0` - HTTP 请求库
+
+### 3. 运行
+
+**方式一：Windows 批处理启动（推荐）**
+```bash
+双击 start.bat
+```
+- 自动检测 Python 环境
+- 启动后自动打开浏览器访问 http://localhost:5000
+
+**方式二：命令行启动**
+```bash
+python app.py
+```
+- 默认监听：`0.0.0.0:5000`
+- 调试模式：`debug=True`
+
+启动后访问: http://localhost:5000
+
 ## 版本历史
 
 ### v1.4.0 (2026-02-04)
@@ -54,11 +93,12 @@
 - 基金实时估值与持仓管理
 
 ## 📑 目录
+- [快速开始](#快速开始)
 - [核心功能](#核心功能)
 - [数据源说明](#数据源说明)
 - [项目架构](#项目架构)
 - [技术栈](#技术栈)
-- [快速开始](#快速开始)
+- [版本历史](#版本历史)
 - [配置说明](#配置说明)
 - [数据文件结构](#数据文件结构)
 - [使用指南](#使用指南)
@@ -202,45 +242,6 @@
 *   **设计语言**: Premium Solid Dark
 *   **图表**: Chart.js
 *   **数据存储**: 本地 JSON 文件 (轻量级/易迁移)
-
-## 快速开始
-
-### 1. 环境准备
-需要 Python 3.8 或更高版本。
-
-**自动环境检测**：
-项目启动时会按以下优先级自动检测 Python 环境：
-1. `launcher.ini` 中配置的 `python_path`
-2. 本地 `venv/Scripts/python.exe` 虚拟环境
-3. 本地 `.venv/Scripts/python.exe` 虚拟环境
-4. 系统 `python` 命令
-
-### 2. 安装依赖
-```bash
-pip install -r requirements.txt
-```
-
-**依赖说明**：仅需两个核心依赖包
-- `flask>=2.0.0` - Web 框架
-- `requests>=2.25.0` - HTTP 请求库
-
-### 3. 运行
-
-**方式一：Windows 批处理启动（推荐）**
-```bash
-双击 start.bat
-```
-- 自动检测 Python 环境
-- 启动后自动打开浏览器访问 http://localhost:5000
-
-**方式二：命令行启动**
-```bash
-python app.py
-```
-- 默认监听：`0.0.0.0:5000`
-- 调试模式：`debug=True`
-
-启动后访问: http://localhost:5000
 
 ## 配置说明
 
