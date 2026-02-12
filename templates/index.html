@@ -186,7 +186,7 @@
             animation: pop-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        /* 新增：时间更新闪烁效果 (回归文字闪烁版) */
+        /* 新增：时间更新闪烁效果 - 黄金页金色 */
         @keyframes time-flash {
 
             0%,
@@ -201,6 +201,23 @@
 
         .time-pop {
             animation: time-flash 0.8s ease-out;
+        }
+
+        /* 基金页时间闪烁效果 - 蓝色系 */
+        @keyframes time-flash-fund {
+
+            0%,
+            100% {
+                color: inherit;
+            }
+
+            50% {
+                color: #60a5fa;
+            }
+        }
+
+        .time-pop-fund {
+            animation: time-flash-fund 0.8s ease-out;
         }
 
         /* Vue 过渡动画 */
@@ -326,6 +343,170 @@
             -webkit-line-clamp: 2;
             line-clamp: 2;
             overflow: hidden;
+        }
+
+        /* ==================== 基金列表视图样式 ==================== */
+        .fund-list-view {
+            --list-row-bg: rgba(22, 27, 42, 0.6);
+            --list-row-hover: rgba(30, 41, 59, 0.8);
+            --list-border: rgba(255, 255, 255, 0.04);
+            --list-text-muted: rgba(148, 163, 184, 0.6);
+        }
+
+        .fund-list-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        .fund-list-header {
+            background: rgba(17, 24, 39, 0.8);
+            border-bottom: 1px solid var(--list-border);
+        }
+
+        .fund-list-header th {
+            padding: 12px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--list-text-muted);
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+            transition: color 0.2s ease;
+            text-align: left;
+        }
+
+        .fund-list-header th.text-right {
+            text-align: right;
+        }
+
+        .fund-list-header th.text-center {
+            text-align: center;
+        }
+
+        .fund-list-header th:hover {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .fund-list-header th.sortable::after {
+            content: '⇅';
+            margin-left: 4px;
+            font-size: 10px;
+            opacity: 0.4;
+        }
+
+        .fund-list-header th.sort-asc::after {
+            content: '↑';
+            opacity: 1;
+            color: #60a5fa;
+        }
+
+        .fund-list-header th.sort-desc::after {
+            content: '↓';
+            opacity: 1;
+            color: #60a5fa;
+        }
+
+        .fund-list-row {
+            background: var(--list-row-bg);
+            border-bottom: 1px solid var(--list-border);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .fund-list-row:hover {
+            background: var(--list-row-hover);
+        }
+
+        .fund-list-row td {
+            padding: 14px 16px;
+            vertical-align: middle;
+        }
+
+        .fund-list-row.compact td {
+            padding: 10px 16px;
+        }
+
+        .fund-list-row.comfortable td {
+            padding: 18px 16px;
+        }
+
+        /* 列表视图操作按钮 */
+        .fund-list-actions {
+            display: flex;
+            gap: 8px;
+            opacity: 0.6;
+            transition: opacity 0.2s ease;
+        }
+
+        .fund-list-row:hover .fund-list-actions {
+            opacity: 1;
+        }
+
+        .fund-list-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .fund-list-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .fund-list-btn.primary {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+        }
+
+        .fund-list-btn.primary:hover {
+            background: rgba(59, 130, 246, 0.25);
+        }
+
+        .fund-list-btn.danger {
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .fund-list-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.25);
+        }
+
+        /* 移动端列表卡片 */
+        .fund-list-mobile {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .fund-list-desktop {
+                display: none;
+            }
+
+            .fund-list-mobile {
+                display: block;
+            }
+
+            .fund-mobile-card {
+                background: var(--list-row-bg);
+                border-bottom: 1px solid var(--list-border);
+                padding: 12px 16px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .fund-mobile-card:hover {
+                background: var(--list-row-hover);
+            }
         }
 
         /* ==================== 紧凑型状态胶囊 - 交易状态指示器 ==================== */
@@ -950,7 +1131,7 @@
                         class="text-gray-600 text-[10px] uppercase font-bold tracking-widest leading-none mb-1 hidden sm:block">
                         {{ currentView === 'gold' ? '更新时间' : '最后动态' }}</p>
                     <p class="text-sm sm:text-lg font-mono font-bold text-gray-400"
-                        :class="{'time-pop': timeAnimating}">
+                        :class="{'time-pop': currentView === 'gold' && timeAnimating, 'time-pop-fund': currentView === 'fund' && fundTimeAnimating}">
                         {{ currentView === 'gold' ? (currentData.time_str || '--:--:--') : holdingsLastUpdate }}
                     </p>
                 </div>
@@ -1020,27 +1201,27 @@
                                     </div>
                                 </div>
 
-                                <!-- 新增：24小时波动摘要 -->
+                                <!-- 新增：当日波动摘要 -->
                                 <div v-if="currentData.volatility"
                                     class="mt-4 pt-4 border-t border-white/10 grid grid-cols-2 gap-4 text-sm text-gray-200 opacity-90">
                                     <div class="col-span-2 flex justify-between items-center mb-1">
-                                        <span class="text-xs font-bold text-yellow-400/80">24H 波动摘要</span>
+                                        <span class="text-xs font-bold text-yellow-400/80">当日波动摘要</span>
                                         <span class="text-[10px] opacity-40">基于 {{ currentData.count }} 条样本</span>
                                     </div>
                                     <div>
-                                        <p class="text-xs opacity-60">24H 最高</p>
+                                        <p class="text-xs opacity-60">当日最高</p>
                                         <p class="font-mono">{{ formatPrice(currentData.high_24h) }}</p>
                                     </div>
                                     <div>
-                                        <p class="text-xs opacity-60">24H 最低</p>
+                                        <p class="text-xs opacity-60">当日最低</p>
                                         <p class="font-mono">{{ formatPrice(currentData.low_24h) }}</p>
                                     </div>
                                     <div>
-                                        <p class="text-xs opacity-60">24H 振幅</p>
+                                        <p class="text-xs opacity-60">当日振幅</p>
                                         <p class="font-mono text-yellow-300">{{ currentData.volatility }}</p>
                                     </div>
                                     <div>
-                                        <p class="text-xs opacity-60">24H 均价</p>
+                                        <p class="text-xs opacity-60">当日均价</p>
                                         <p class="font-mono">{{ formatPrice(currentData.avg_24h) }}</p>
                                     </div>
                                 </div>
@@ -1274,7 +1455,7 @@
                                     </button>
                                     <button @click="exportHistoryCSV"
                                         class="text-yellow-400 hover:text-yellow-300 text-sm px-3 py-1 hover:bg-yellow-900/20 rounded transition">
-                                        导出 24H 历史
+                                        导出当日历史
                                     </button>
                                     <button @click="clearRecords"
                                         class="text-red-400 hover:text-red-300 text-sm px-3 py-1 hover:bg-red-900/20 rounded transition">
@@ -1345,14 +1526,21 @@
                         <div
                             class="flex items-center gap-2 self-end sm:self-auto px-1.5 py-1.5 rounded-2xl bg-black/30 border border-white/5 shadow-inner">
                             <button @click="openAddHoldingModal()"
-                                class="flex items-center gap-2 text-[12px] bg-green-500/10 hover:bg-green-500/20 text-green-400 px-4 py-2 rounded-xl font-black transition-all border border-green-500/10 active:scale-95"
+                                class="group flex items-center gap-2 text-[12px] bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 px-4 py-2 rounded-xl font-black transition-all border border-blue-400/20 active:scale-95"
                                 title="添加持仓">
-                                <span>+</span> 添加
+                                <span class="text-[14px] transition-transform duration-300 group-hover:scale-125">+</span>
+                                <span>添加</span>
                             </button>
                             <button @click="fetchHoldings" :disabled="isLoadingHoldings"
-                                class="flex items-center gap-2 text-[12px] bg-white/5 hover:bg-white/10 text-gray-300 px-4 py-2 rounded-xl font-black transition-all border border-white/5 active:scale-95"
+                                class="group flex items-center gap-2 text-[12px] bg-white/5 hover:bg-white/10 text-gray-300 px-4 py-2 rounded-xl font-black transition-all border border-white/5 active:scale-95"
                                 :class="{'opacity-50 cursor-not-allowed': isLoadingHoldings}" title="刷新数据">
-                                <span :class="{'animate-spin': isLoadingHoldings}">🔄</span> 刷新
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                    stroke="currentColor" class="w-4 h-4 transition-transform duration-500"
+                                    :class="isLoadingHoldings ? 'animate-spin' : 'group-hover:rotate-180'">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                                </svg>
+                                <span>刷新</span>
                             </button>
                         </div>
                     </div>
@@ -1442,7 +1630,10 @@
                     </div>
 
                     <!-- 持仓列表 -->
-                    <div class="px-6 py-8">
+                    <div ref="holdingsListRef" :class="[
+                        'px-6 overflow-hidden transition-all duration-500 ease-in-out',
+                        isHoldingsListCollapsed ? 'py-0 opacity-0' : 'py-8 opacity-100'
+                    ]" :style="{ maxHeight: isHoldingsListCollapsed ? '0px' : holdingsListHeight + 'px' }">
                         <div v-if="isLoadingHoldings" class="text-center py-8 text-gray-500">
                             <span class="animate-spin inline-block mr-2 text-2xl">⏳</span>
                             <p class="text-sm">正在加载持仓数据...</p>
@@ -1582,6 +1773,19 @@
                         </div>
 
                     </div>
+
+                    <!-- 收起/展开按钮栏 -->
+                    <div v-if="holdings.length > 0 && !isLoadingHoldings"
+                        class="border-t border-white/5 bg-black/20 hover:bg-black/30 transition-colors">
+                        <button @click="isHoldingsListCollapsed = !isHoldingsListCollapsed"
+                            class="w-full py-3 flex items-center justify-center text-gray-400 hover:text-gray-200 transition-colors group">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"
+                                stroke="currentColor" class="w-6 h-6 transition-transform duration-300"
+                                :class="isHoldingsListCollapsed ? 'rotate-0' : 'rotate-180'">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="px-4 pt-4">
@@ -1609,19 +1813,61 @@
                                 </button>
                             </div>
 
+                            <!-- 列表模式行高切换（仅列表模式显示） -->
+                            <div v-if="fundDisplayMode === 'list'" class="flex bg-gray-800 p-1 rounded-lg border border-gray-700">
+                                <button @click="fundRowHeight = 'compact'"
+                                    class="px-2.5 py-1 text-xs rounded-md transition-all font-medium"
+                                    :class="fundRowHeight === 'compact' ? 'bg-indigo-600/80 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
+                                    title="紧凑行高">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h17.25M3 9h17.25M3 13.5h17.25" />
+                                    </svg>
+                                </button>
+                                <button @click="fundRowHeight = 'comfortable'"
+                                    class="px-2.5 py-1 text-xs rounded-md transition-all font-medium"
+                                    :class="fundRowHeight === 'comfortable' ? 'bg-indigo-600/80 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
+                                    title="舒适行高">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h17.25M3 12h17.25M3 19.5h17.25" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            <!-- 展示模式切换 -->
+                            <div class="flex bg-gray-800 p-1 rounded-lg border border-gray-700">
+                                <button @click="setFundDisplayMode('card')"
+                                    class="px-3 py-1 text-xs rounded-md transition-all font-medium flex items-center gap-1.5"
+                                    :class="fundDisplayMode === 'card' ? 'bg-slate-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
+                                    title="卡片视图">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                                    </svg>
+                                    <span class="hidden sm:inline">卡片</span>
+                                </button>
+                                <button @click="setFundDisplayMode('list')"
+                                    class="px-3 py-1 text-xs rounded-md transition-all font-medium flex items-center gap-1.5"
+                                    :class="fundDisplayMode === 'list' ? 'bg-slate-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'"
+                                    title="列表视图">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                    </svg>
+                                    <span class="hidden sm:inline">列表</span>
+                                </button>
+                            </div>
+
                             <!-- 排序控制 -->
                             <div class="flex bg-gray-800 p-1 rounded-lg border border-gray-700">
-                                <button @click="fundSortMode = 'default'"
+                                <button @click="setLegacyFundSortMode('default')"
                                     class="px-3 py-1 text-xs rounded-md transition-all font-medium"
-                                    :class="fundSortMode === 'default' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'">
+                                    :class="(fundSortMode === 'default' && fundSortField === 'default') ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'">
                                     默认
                                 </button>
-                                <button @click="fundSortMode = 'gain'"
+                                <button @click="setLegacyFundSortMode('gain')"
                                     class="px-3 py-1 text-xs rounded-md transition-all font-medium"
                                     :class="fundSortMode === 'gain' ? 'bg-red-600/80 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'">
                                     涨幅
                                 </button>
-                                <button @click="fundSortMode = 'loss'"
+                                <button @click="setLegacyFundSortMode('loss')"
                                     class="px-3 py-1 text-xs rounded-md transition-all font-medium"
                                     :class="fundSortMode === 'loss' ? 'bg-green-600/80 text-white shadow-sm' : 'text-gray-400 hover:text-gray-200'">
                                     跌幅
@@ -1645,7 +1891,8 @@
                             <p>暂无自选，请输入代码添加</p>
                         </div>
 
-                        <transition-group name="list" tag="div"
+                        <!-- 卡片视图 -->
+                        <transition-group v-if="fundDisplayMode === 'card'" name="list" tag="div"
                             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
                             <div v-for="fund in filteredFunds" :key="fund.code" @click="toggleHoldings(fund)"
                                 class="bg-gray-800 rounded-xl p-3 border transition-all hover:bg-gray-750 hover:border-blue-500/50 hover:shadow-[0_0_15px_rgba(59,130,246,0.2)] hover:scale-[1.02] group relative overflow-hidden cursor-pointer flex flex-col h-full"
@@ -1750,6 +1997,118 @@
                                 </div>
                             </div>
                         </transition-group>
+
+                        <!-- 列表视图 (桌面端表格) -->
+                        <div v-else class="fund-list-view fund-list-desktop rounded-xl overflow-hidden border border-gray-700/50">
+                            <table class="fund-list-table">
+                                <thead class="fund-list-header">
+                                    <tr>
+                                        <th class="sortable" :class="getSortClass('name')" @click="toggleSort('name')">基金名称</th>
+                                        <th class="sortable text-right" :class="getSortClass('change')" @click="toggleSort('change')">涨跌幅</th>
+                                        <th class="sortable text-right" :class="getSortClass('price')" @click="toggleSort('price')">净值</th>
+                                        <th class="text-right">更新时间</th>
+                                        <th class="text-center">状态</th>
+                                        <th class="text-right">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-for="fund in filteredFunds" :key="fund.code"
+                                        @click="toggleHoldings(fund)"
+                                        class="fund-list-row"
+                                        :class="[
+                                            fundRowHeight,
+                                            fund.change > 0 ? 'up' : (fund.change < 0 ? 'down' : ''),
+                                            fund.animating && fund.changeType === 'up' ? 'animate-flash-up' : '',
+                                            fund.animating && fund.changeType === 'down' ? 'animate-flash-down' : ''
+                                        ]">
+                                        <td>
+                                            <div class="flex flex-col">
+                                                <span class="font-bold text-sm text-white">{{ fund.name }}</span>
+                                                <span class="text-[10px] text-gray-500 font-mono">{{ fund.code }}</span>
+                                            </div>
+                                        </td>
+                                        <td class="text-right">
+                                            <span class="text-lg font-black font-mono"
+                                                :class="[
+                                                    fund.change > 0 ? 'text-red-500' : (fund.change < 0 ? 'text-green-500' : 'text-gray-400'),
+                                                    fund.animating ? 'pop-effect' : ''
+                                                ]">
+                                                {{ (fund.change > 0 ? '+' : '') + fund.change }}%
+                                            </span>
+                                        </td>
+                                        <td class="text-right">
+                                            <span class="text-base font-bold text-gray-300 font-mono">{{ fund.price }}</span>
+                                        </td>
+                                        <td class="text-right">
+                                            <span class="text-[11px] text-gray-500 font-mono">{{ fund.time_str }}</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span v-if="isFundInHoldings(fund.code)"
+                                                class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                                已持仓
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="fund-list-actions justify-end">
+                                                <button @click.stop="toggleHoldings(fund)" class="fund-list-btn primary">
+                                                    重仓股
+                                                </button>
+                                                <button @click.stop="addFundToHoldings(fund)" class="fund-list-btn">
+                                                    入持仓
+                                                </button>
+                                                <button @click.stop="deleteFund(fund.code)" class="fund-list-btn danger">
+                                                    移除
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 列表视图 (移动端卡片) -->
+                        <div v-if="fundDisplayMode === 'list'" class="fund-list-mobile">
+                            <div v-for="fund in filteredFunds" :key="fund.code"
+                                @click="toggleHoldings(fund)"
+                                class="fund-mobile-card"
+                                :class="[
+                                    fund.change > 0 ? 'up' : (fund.change < 0 ? 'down' : ''),
+                                    fund.animating && fund.changeType === 'up' ? 'animate-flash-up' : '',
+                                    fund.animating && fund.changeType === 'down' ? 'animate-flash-down' : ''
+                                ]">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div class="flex flex-col min-w-0 flex-1">
+                                        <span class="font-bold text-sm text-white">{{ fund.name }}</span>
+                                        <span class="text-[10px] text-gray-500 font-mono">{{ fund.code }}</span>
+                                    </div>
+                                    <span class="text-xl font-black font-mono"
+                                        :class="[
+                                            fund.change > 0 ? 'text-red-500' : (fund.change < 0 ? 'text-green-500' : 'text-gray-400'),
+                                            fund.animating ? 'pop-effect' : ''
+                                        ]">
+                                        {{ (fund.change > 0 ? '+' : '') + fund.change }}%
+                                    </span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-sm font-bold text-gray-300 font-mono">{{ fund.price }}</span>
+                                        <span class="text-[10px] text-gray-500 font-mono">{{ fund.time_str }}</span>
+                                        <span v-if="isFundInHoldings(fund.code)"
+                                            class="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                                            已持仓
+                                        </span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button @click.stop="toggleHoldings(fund)" class="fund-list-btn primary py-1 px-2 text-[10px]">
+                                            重仓
+                                        </button>
+                                        <button @click.stop="deleteFund(fund.code)" class="fund-list-btn danger py-1 px-2 text-[10px]">
+                                            移除
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- 底部提示 (现在随列表滚动) -->
                         <div v-if="funds.length > 0" class="mt-8 mb-12 text-center">
@@ -2115,9 +2474,11 @@
                     lastFundInterval: null,    // 上次基金轮询间隔
                     tempBuyPrice: null, // 用于输入框获取焦点时暂存数据
                     chartSwitching: false, // 控制图表切换动画
-                    timeAnimating: false, // 控制时间更新动画
+                    timeAnimating: false, // 控制金价时间更新动画
+                    fundTimeAnimating: false, // 控制基金时间更新动画
                     priceAnimTimer: null, // 动画定时器引用
-                    timeAnimTimer: null, // 时间动画定时器
+                    timeAnimTimer: null, // 金价时间动画定时器
+                    fundTimeAnimTimer: null, // 基金时间动画定时器
                     // 预警设置
                     settings: {
                         high: 0,
@@ -2179,11 +2540,24 @@
                             totalProfit: null,
                             profitRate: null
                         }
-                    }
+                    },
+
+                    // 持仓列表收起状态
+                    isHoldingsListCollapsed: false,
+
+                    // 持仓列表动态高度
+                    holdingsListHeight: 2000,
+
+                    // 自选基金展示模式与偏好
+                    fundDisplayMode: 'card', // 'card' | 'list'
+                    fundSortField: 'default', // 'default' | 'change' | 'price' | 'name'
+                    fundSortDirection: 'desc', // 'asc' | 'desc'
+                    fundRowHeight: 'comfortable' // 'compact' | 'comfortable'
                 }
             },
             created() {
                 this.chartInstance = null; // 非响应式变量
+                this.loadFundViewPreferences(); // 加载用户偏好
             },
             watch: {
                 'portfolioDrawer.visible'(newVal) {
@@ -2195,6 +2569,11 @@
                 },
                 async currentView(newVal) {
                     if (newVal === 'fund') {
+                        // 停止金价轮询
+                        if (this.priceTimer) {
+                            clearInterval(this.priceTimer);
+                            this.priceTimer = null;
+                        }
                         // 切换到基金视图时，销毁图表实例防止残留
                         if (this.chartInstance) {
                             this.chartInstance.destroy();
@@ -2210,6 +2589,11 @@
                         // 基金页轮询间隔
                         this.startFundPolling();
                     } else {
+                        // 停止基金轮询
+                        if (this.fundTimer) {
+                            clearInterval(this.fundTimer);
+                            this.fundTimer = null;
+                        }
                         // 切换回金价视图时，先获取交易状态（等待完成）
                         await this.fetchTradingStatus('gold');
 
@@ -2238,6 +2622,27 @@
                         }
                     },
                     deep: true
+                },
+                isHoldingsListCollapsed(newVal) {
+                    // 展开时重新计算高度
+                    if (!newVal) {
+                        this.$nextTick(() => {
+                            this.updateHoldingsListHeight();
+                        });
+                    }
+                },
+                holdings: {
+                    handler() {
+                        // 持仓数据变化时更新高度
+                        this.$nextTick(() => {
+                            this.updateHoldingsListHeight();
+                        });
+                    },
+                    deep: true
+                },
+                fundRowHeight() {
+                    // 行高变化时保存偏好
+                    this.saveFundViewPreferences();
                 }
             },
             computed: {
@@ -2267,11 +2672,29 @@
                         );
                     }
 
-                    // 2. 排序
-                    if (this.fundSortMode === 'gain') {
-                        result.sort((a, b) => b.change - a.change);
-                    } else if (this.fundSortMode === 'loss') {
-                        result.sort((a, b) => a.change - b.change);
+                    // 2. 排序 (优先使用列表视图的列排序)
+                    const sortDir = this.fundSortDirection === 'asc' ? 1 : -1;
+
+                    if (this.fundSortField !== 'default') {
+                        // 列排序模式
+                        switch (this.fundSortField) {
+                            case 'change':
+                                result.sort((a, b) => sortDir * (a.change - b.change));
+                                break;
+                            case 'price':
+                                result.sort((a, b) => sortDir * (parseFloat(a.price) - parseFloat(b.price)));
+                                break;
+                            case 'name':
+                                result.sort((a, b) => sortDir * a.name.localeCompare(b.name, 'zh-CN'));
+                                break;
+                        }
+                    } else {
+                        // 传统排序模式 (兼容旧版按钮)
+                        if (this.fundSortMode === 'gain') {
+                            result.sort((a, b) => b.change - a.change);
+                        } else if (this.fundSortMode === 'loss') {
+                            result.sort((a, b) => a.change - b.change);
+                        }
                     }
 
                     return result;
@@ -2369,6 +2792,75 @@
                 formatPercent(val) {
                     if (val === undefined || val === null || isNaN(val)) return '0.00';
                     return (val >= 0 ? '+' : '') + parseFloat(val).toFixed(2);
+                },
+
+                // ==================== 自选基金视图偏好管理 ====================
+                loadFundViewPreferences() {
+                    try {
+                        const saved = localStorage.getItem('fundViewPreferences');
+                        if (saved) {
+                            const prefs = JSON.parse(saved);
+                            if (prefs.displayMode) this.fundDisplayMode = prefs.displayMode;
+                            if (prefs.sortField) this.fundSortField = prefs.sortField;
+                            if (prefs.sortDirection) this.fundSortDirection = prefs.sortDirection;
+                            if (prefs.rowHeight) this.fundRowHeight = prefs.rowHeight;
+                        }
+                    } catch (e) {
+                        console.warn('加载基金视图偏好失败:', e);
+                    }
+                },
+
+                saveFundViewPreferences() {
+                    try {
+                        const prefs = {
+                            displayMode: this.fundDisplayMode,
+                            sortField: this.fundSortField,
+                            sortDirection: this.fundSortDirection,
+                            rowHeight: this.fundRowHeight
+                        };
+                        localStorage.setItem('fundViewPreferences', JSON.stringify(prefs));
+                    } catch (e) {
+                        console.warn('保存基金视图偏好失败:', e);
+                    }
+                },
+
+                setFundDisplayMode(mode) {
+                    this.fundDisplayMode = mode;
+                    this.saveFundViewPreferences();
+                },
+
+                setLegacyFundSortMode(mode) {
+                    this.fundSortMode = mode;
+                    this.fundSortField = 'default';
+                    this.fundSortDirection = mode === 'loss' ? 'asc' : 'desc';
+                    this.saveFundViewPreferences();
+                },
+
+                toggleSort(field) {
+                    if (this.fundSortField === field) {
+                        // 切换方向
+                        this.fundSortDirection = this.fundSortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        // 新字段，默认降序
+                        this.fundSortField = field;
+                        this.fundSortDirection = 'desc';
+                    }
+                    // 点击表头排序时，将旧排序模式重置为默认，保持UI一致性
+                    this.fundSortMode = 'default';
+                    this.saveFundViewPreferences();
+                },
+
+                getSortClass(field) {
+                    if (this.fundSortField !== field) return '';
+                    return this.fundSortDirection === 'asc' ? 'sort-asc' : 'sort-desc';
+                },
+
+                // 更新持仓列表高度
+                updateHoldingsListHeight() {
+                    if (this.$refs.holdingsListRef) {
+                        const height = this.$refs.holdingsListRef.scrollHeight;
+                        this.holdingsListHeight = Math.max(height, 100);
+                    }
                 },
 
                 // 数字脉冲动画触发方法
@@ -2945,7 +3437,7 @@
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement("a");
                     link.setAttribute("href", url);
-                    link.setAttribute("download", `gold_24h_history_${new Date().toISOString().split('T')[0]}.csv`);
+                    link.setAttribute("download", `gold_daily_history_${new Date().toISOString().split('T')[0]}.csv`);
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
@@ -3122,6 +3614,9 @@
                             }
                         }]
                     });
+
+                    // 应用初始 x 轴范围
+                    this.applyChartRange();
                 },
 
                 // 辅助函数：绘制圆角矩形
@@ -3156,10 +3651,7 @@
                     }
                     const chartData = this.processDataForChart(this.historyData);
                     this.chartInstance.data.datasets[0].data = chartData;
-                    if (this.chartViewMode === '30M') {
-                        this.chartInstance.options.scales.x.min = now - 1800;
-                        this.chartInstance.options.scales.x.max = now;
-                    }
+                    this.applyChartRange();
                     this.chartInstance.update('none');
                 },
 
@@ -3334,7 +3826,27 @@
                             }
 
                             this.holdingsSummary = data.summary || { total_cost: 0, total_value: 0, total_profit: 0, total_profit_rate: 0, count: 0 };
-                            this.holdingsLastUpdate = data.last_update || '--';
+
+                            // 数据加载完成后更新列表高度
+                            this.$nextTick(() => {
+                                this.updateHoldingsListHeight();
+                            });
+                            // 检测最后动态时间是否真正更新，只有变化时才触发动画
+                            const newLastUpdate = data.last_update || '--';
+                            const lastUpdateChanged = this.holdingsLastUpdate !== newLastUpdate;
+                            this.holdingsLastUpdate = newLastUpdate;
+                            // 只有当时间在基金视图下真正变化时才触发闪烁
+                            if (lastUpdateChanged && this.currentView === 'fund') {
+                                if (this.fundTimeAnimTimer) clearTimeout(this.fundTimeAnimTimer);
+                                this.fundTimeAnimating = false;
+                                this.$nextTick(() => {
+                                    this.fundTimeAnimating = true;
+                                    this.fundTimeAnimTimer = setTimeout(() => {
+                                        this.fundTimeAnimating = false;
+                                        this.fundTimeAnimTimer = null;
+                                    }, 800);
+                                });
+                            }
                         } else {
                             console.warn('加载持仓失败:', data.message);
                         }
@@ -3438,6 +3950,64 @@
                     } catch (e) {
                         console.error('删除持仓失败', e);
                     }
+                },
+
+                // ========== 图表视图切换 ==========
+                setChartViewMode(mode) {
+                    // 校验模式有效性
+                    if (!['30M', '1D'].includes(mode)) {
+                        console.error('无效的图表模式:', mode);
+                        return;
+                    }
+                    // 避免重复点击
+                    if (this.chartViewMode === mode) return;
+
+                    // 设置切换动画标志
+                    this.chartSwitching = true;
+
+                    // 更新模式
+                    this.chartViewMode = mode;
+
+                    // 延迟执行图表更新，给动画留出时间
+                    setTimeout(() => {
+                        // 检查图表实例是否已初始化
+                        if (!this.chartInstance) {
+                            this.chartSwitching = false;
+                            return;
+                        }
+
+                        // 重新处理数据
+                        const chartData = this.processDataForChart(this.historyData);
+                        this.chartInstance.data.datasets[0].data = chartData;
+
+                        // 应用新的 x 轴范围
+                        this.applyChartRange();
+
+                        // 刷新图表
+                        this.chartInstance.update('none');
+
+                        // 关闭切换动画
+                        this.chartSwitching = false;
+                    }, 150);
+                },
+
+                applyChartRange() {
+                    // 检查图表实例是否已初始化
+                    if (!this.chartInstance) return;
+
+                    const now = Date.now() / 1000;
+                    if (this.chartViewMode === '30M') {
+                        // 近30分钟：固定时间窗口
+                        this.chartInstance.options.scales.x.min = now - 1800;
+                        this.chartInstance.options.scales.x.max = now;
+                    } else {
+                        // 当日：从今日00:00到现在
+                        const nowDate = new Date();
+                        const todayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate());
+                        const todayStartTs = todayStart.getTime() / 1000;
+                        this.chartInstance.options.scales.x.min = todayStartTs;
+                        this.chartInstance.options.scales.x.max = now;
+                    }
                 }
             },
             async mounted() {
@@ -3473,6 +4043,8 @@
                 if (this.priceTimer) clearInterval(this.priceTimer);
                 if (this.fundTimer) clearInterval(this.fundTimer);
                 if (this.tradingTimer) clearInterval(this.tradingTimer);
+                if (this.timeAnimTimer) clearTimeout(this.timeAnimTimer);
+                if (this.fundTimeAnimTimer) clearTimeout(this.fundTimeAnimTimer);
                 window.removeEventListener('resize', this.handleResize);
                 if (this.chartInstance) {
                     this.chartInstance.destroy();
