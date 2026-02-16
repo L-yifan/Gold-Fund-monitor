@@ -40,4 +40,5 @@ yolotrain/
 *.log
 data.json
 data/data.json
+data/holiday_cache.json
 manual_records.json

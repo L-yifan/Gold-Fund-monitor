@@ -83,10 +83,29 @@ HEADERS = {
 }
 
 # ==================== 交易时间配置 ====================
-# 使用百度日历 API 获取节假日（无需 API Key，免费稳定）
-HOLIDAY_API_URL = "https://sp0.baidu.com/8aQDcjqpAAV3otqbppnN2DJv/api.php?resource_id=6017&query={year}年节假日"
+# 节假日 API 配置（按优先级排序，多API降级）
+HOLIDAY_API_URLS = [
+    # 百度日历 API（主要）
+    ("baidu", "https://sp0.baidu.com/8aQDcjqpAAV3otqbppnN2DJv/api.php?resource_id=6017&query={year}年节假日"),
+    # timor.tech 免费 API（备用1）
+    ("timor", "https://timor.tech/api/holiday/year/{year}"),
+    # 聚合数据免费 API（备用2，需要Key，这里保留接口仅供参考）
+    ("juhe", "https://api.juhe.cn/calendar/month"),
+]
+
+HOLIDAY_API_URL = HOLIDAY_API_URLS[0][1]  # 保留兼容性
 HOLIDAY_CACHE_TTL = 86400  # 节假日数据缓存有效期（24小时）
 
+# 智能缓存配置
+HOLIDAY_CACHE_DIR = DATA_DIR  # 缓存目录
+MAX_CACHED_YEARS = 3  # 内存中最多缓存3年的数据
+
+# ==================== 交易所交易日历配置 ====================
+EXCHANGE_CALENDAR_URL = "https://www.sse.com.cn/disclosure/dealinstruc/closed/"  # 上交所休市安排页面
+EXCHANGE_CALENDAR_FILE = os.path.join(DATA_DIR, "exchange_calendar.json")  # 缓存文件
+EXCHANGE_CALENDAR_CACHE_DIR = DATA_DIR  # 缓存目录
+EXCHANGE_CALENDAR_UPDATE_DAY = 1  # 每月1日自动更新
+ 
 # 采集频率配置
 FETCH_INTERVAL_TRADING = 5       # 交易时间内采集间隔（秒）
 FETCH_INTERVAL_NON_TRADING = 300  # 非交易时间采集间隔（秒）

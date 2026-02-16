@@ -1015,7 +1015,7 @@
                     <!-- 紧凑型状态胶囊 (黄金) -->
                     <div v-if="currentView === 'gold'" class="status-pill ml-2"
                         :class="{ 'active': tradingStatus.is_trading_time, 'holiday': tradingStatus.is_holiday }"
-                        :title="tradingStatus.phase_name + (tradingStatus.time_until_next ? ' | ' + formatCountdown(tradingStatus.time_until_next) + '后' + (tradingStatus.next_event && (tradingStatus.next_event.includes('open') || tradingStatus.next_event.includes('auction')) ? '开市' : '收市') : '')">
+                        :title="tradingStatus.phase_name + (tradingStatus.time_until_next ? ' | ' + formatCountdown(tradingStatus.time_until_next, tradingStatus.next_event_time) + tradingStatus.next_event_name : '')">
                         <div class="led-dot"
                             :class="{ 'active': tradingStatus.is_trading_time, 'holiday': tradingStatus.is_holiday }">
                         </div>
@@ -1027,10 +1027,14 @@
                             <span class="text-[10px]">{{ tradingStatus.weekday_name }}</span>
                             <template v-if="tradingStatus.time_until_next">
                                 <span class="w-px h-2.5 bg-white/10"></span>
-                                <span class="font-mono">{{ formatCountdown(tradingStatus.time_until_next) }}</span>
-                                <span class="text-[9px] opacity-70">{{ tradingStatus.next_event &&
-                                    (tradingStatus.next_event.includes('open') ||
-                                    tradingStatus.next_event.includes('auction')) ? '开市' : '收市' }}</span>
+                                <span class="font-mono">
+                                    <template v-if="tradingStatus.is_holiday && getHolidayName()">
+                                        {{ getHolidayName() }} · {{ formatCountdown(tradingStatus.time_until_next, tradingStatus.next_event_time) }}开
+                                    </template>
+                                    <template v-else>
+                                        {{ formatCountdown(tradingStatus.time_until_next, tradingStatus.next_event_time) }}{{ tradingStatus.next_event_name }}
+                                    </template>
+                                </span>
                             </template>
                         </div>
                     </div>
@@ -1050,7 +1054,14 @@
                             <span class="text-[10px]">{{ fundTradingStatus.weekday_name }}</span>
                             <template v-if="fundTradingStatus.time_until_next">
                                 <span class="w-px h-2.5 bg-white/10"></span>
-                                <span class="font-mono">{{ formatCountdown(fundTradingStatus.time_until_next) }}</span>
+                                <span class="font-mono">
+                                    <template v-if="fundTradingStatus.is_holiday && getHolidayName()">
+                                        {{ getHolidayName() }} · {{ formatCountdown(fundTradingStatus.time_until_next, fundTradingStatus.next_event_time) }}开
+                                    </template>
+                                    <template v-else>
+                                        {{ formatCountdown(fundTradingStatus.time_until_next, fundTradingStatus.next_event_time) }}{{ fundTradingStatus.next_event_name }}
+                                    </template>
+                                </span>
                             </template>
                         </div>
                     </div>
@@ -1631,7 +1642,8 @@
 
                     <!-- 持仓列表 -->
                     <div ref="holdingsListRef" :class="[
-                        'px-6 overflow-hidden transition-all duration-500 ease-in-out',
+                        'px-6 overflow-hidden duration-500 ease-in-out',
+                        holdingsListTransitionEnabled ? 'transition-all' : '',
                         isHoldingsListCollapsed ? 'py-0 opacity-0' : 'py-8 opacity-100'
                     ]" :style="{ maxHeight: isHoldingsListCollapsed ? '0px' : holdingsListHeight + 'px' }">
                         <div v-if="isLoadingHoldings" class="text-center py-8 text-gray-500">
@@ -1761,10 +1773,22 @@
                                     <div class="flex-[1.5] flex items-stretch">
                                         <button @click.stop="openEditHoldingModal(h)"
                                             class="flex-1 flex items-center justify-center gap-1.5 hover:bg-yellow-500/10 transition-all text-gray-500 hover:text-yellow-500 border-r border-white/5 group/btn">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                stroke-width="2" stroke="currentColor"
+                                                class="w-3.5 h-3.5 transition-transform group-hover/btn:scale-110">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                            </svg>
                                             <span class="text-[10px] font-bold">编辑</span>
                                         </button>
                                         <button @click.stop="deleteHolding(h.code)"
                                             class="flex-1 flex items-center justify-center gap-1.5 hover:bg-red-500/10 transition-all text-gray-600 hover:text-red-400 group/btn">
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                                stroke-width="2" stroke="currentColor"
+                                                class="w-3.5 h-3.5 transition-transform group-hover/btn:scale-110">
+                                                <path stroke-linecap="round" stroke-linejoin="round"
+                                                    d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
                                             <span class="text-[10px] font-bold">删除</span>
                                         </button>
                                     </div>
@@ -2548,6 +2572,12 @@
                     // 持仓列表动态高度
                     holdingsListHeight: 2000,
 
+                    // 持仓列表过渡动画开关（防止高度计算时产生两段动画）
+                    holdingsListTransitionEnabled: true,
+
+                    // 持仓列表是否正在展开（冻结高度更新）
+                    isHoldingsListExpanding: false,
+
                     // 自选基金展示模式与偏好
                     fundDisplayMode: 'card', // 'card' | 'list'
                     fundSortField: 'default', // 'default' | 'change' | 'price' | 'name'
@@ -2624,16 +2654,22 @@
                     deep: true
                 },
                 isHoldingsListCollapsed(newVal) {
-                    // 展开时重新计算高度
                     if (!newVal) {
-                        this.$nextTick(() => {
+                        // 展开时先冻结高度更新，等待动画完成
+                        this.isHoldingsListExpanding = true;
+                        // 初始设置一个较大的高度，确保内容能显示
+                        // 使用固定大值避免立即计算 scrollHeight 导致的抖动
+                        this.holdingsListHeight = 2000;
+                        // 500ms 后（CSS 动画完成）解冻并更新准确高度
+                        setTimeout(() => {
+                            this.isHoldingsListExpanding = false;
                             this.updateHoldingsListHeight();
-                        });
+                        }, 500);
                     }
                 },
                 holdings: {
                     handler() {
-                        // 持仓数据变化时更新高度
+                        // 避免展开动画期间重复计算（冻结期间会跳过）
                         this.$nextTick(() => {
                             this.updateHoldingsListHeight();
                         });
@@ -2857,9 +2893,20 @@
 
                 // 更新持仓列表高度
                 updateHoldingsListHeight() {
+                    // 如果正在展开动画期间，跳过高度更新
+                    if (this.isHoldingsListExpanding) {
+                        return;
+                    }
+
                     if (this.$refs.holdingsListRef) {
+                        // 临时禁用过渡动画，防止高度变化产生两段动画
+                        this.holdingsListTransitionEnabled = false;
                         const height = this.$refs.holdingsListRef.scrollHeight;
                         this.holdingsListHeight = Math.max(height, 100);
+                        // 下一帧重新启用过渡动画
+                        requestAnimationFrame(() => {
+                            this.holdingsListTransitionEnabled = true;
+                        });
                     }
                 },
 
@@ -3036,19 +3083,69 @@
                     }
                 },
 
-                formatCountdown(seconds) {
+                formatCountdown(seconds, nextEventTime) {
                     if (!seconds || seconds <= 0) return '00:00:00';
-                    const hours = Math.floor(seconds / 3600);
+                    
+                    const days = Math.floor(seconds / 86400);
+                    const hours = Math.floor((seconds % 86400) / 3600);
                     const minutes = Math.floor((seconds % 3600) / 60);
                     const secs = seconds % 60;
 
-                    if (hours > 0) {
+                    // 超过2天显示具体日期
+                    if (days >= 2) {
+                        if (nextEventTime) {
+                            const date = new Date(nextEventTime);
+                            const month = date.getMonth() + 1;
+                            const day = date.getDate();
+                            return `${month}月${day}日`;
+                        }
+                        return `${days}天后`;
+                    } else if (days > 0) {
+                        return `${days}天${hours}时`;
+                    } else if (hours > 0) {
                         return `${hours}小时${minutes}分`;
                     } else if (minutes > 0) {
                         return `${minutes}分${secs}秒`;
                     } else {
-                        return `${secs}秒`;
+                        return `${secs}秒后`;
                     }
+                },
+
+                getHolidayName() {
+                    const now = new Date();
+                    const month = now.getMonth() + 1;
+                    const date = now.getDate();
+                    
+                    // 春节期间（大约1月底到2月中）
+                    if (month === 2 && date >= 15 && date <= 22) {
+                        return '春节';
+                    }
+                    // 清明节（4月4-6日）
+                    if (month === 4 && date >= 4 && date <= 6) {
+                        return '清明节';
+                    }
+                    // 劳动节（5月1-2日）
+                    if (month === 5 && date >= 1 && date <= 2) {
+                        return '劳动节';
+                    }
+                    // 端午节（5月底-6月初）
+                    if ((month === 5 && date >= 30) || (month === 6 && date <= 5)) {
+                        return '端午节';
+                    }
+                    // 中秋节（9月底-10月初）
+                    if ((month === 9 && date >= 20) || (month === 10 && date <= 5)) {
+                        return '中秋节';
+                    }
+                    // 国庆节（10月1-7日）
+                    if (month === 10 && date >= 1 && date <= 7) {
+                        return '国庆节';
+                    }
+                    // 元旦（1月1日）
+                    if (month === 1 && date === 1) {
+                        return '元旦';
+                    }
+                    
+                    return null;
                 },
 
                 showToast(message, type = 'info') {

@@ -5,20 +5,18 @@
 """
 
 import time
-import requests
 from datetime import datetime, timedelta
-from app.config import HOLIDAY_API_URL, HOLIDAY_CACHE_TTL
-
-# 缓存节假日数据
-_holiday_cache = {
-    "timestamp": 0,
-    "holidays": set()
-}
+from app.services.holiday_service import (
+    get_holidays,
+    is_holiday as holiday_service_is_holiday,
+    warmup_cache,
+    check_and_save_cache
+)
 
 
 def fetch_holidays(year=None):
     """
-    从 API 获取中国法定节假日列表
+    获取中国法定节假日列表（委托给 holiday_service）
     
     参数:
         year: 年份，默认为当前年份
@@ -26,62 +24,21 @@ def fetch_holidays(year=None):
     返回:
         set: 节假日日期字符串集合 (格式: "YYYY-MM-DD")
     """
-    global _holiday_cache
-    
-    now = time.time()
-    
-    # 检查缓存是否有效
-    if now - _holiday_cache["timestamp"] < HOLIDAY_CACHE_TTL:
-        return _holiday_cache["holidays"]
-    
-    if year is None:
-        year = datetime.now().year
-    
-    try:
-        url = HOLIDAY_API_URL.format(year=year)
-        response = requests.get(url, timeout=5)
-        
-        if response.status_code == 200:
-            data = response.json()
-            holidays = set()
-            
-            # 解析 API 返回的节假日数据
-            # 假设 API 返回格式: {"holidays": [{"date": "2024-02-10", "name": "春节"}, ...]}
-            if "holidays" in data:
-                for holiday in data["holidays"]:
-                    date_str = holiday.get("date", "")
-                    if date_str:
-                        holidays.add(date_str)
-            
-            _holiday_cache["timestamp"] = now
-            _holiday_cache["holidays"] = holidays
-            print(f"[节假日] 已更新 {year} 年节假日数据，共 {len(holidays)} 天")
-            return holidays
-            
-    except Exception as e:
-        print(f"[节假日] API 获取失败: {e}")
-    
-    # 如果获取失败，返回缓存的数据（即使已过期）或空集合
-    return _holiday_cache.get("holidays", set())
+    return get_holidays(year)
 
 
-def is_holiday(dt=None):
+def is_holiday(dt=None, market_type="fund"):
     """
-    判断指定日期是否为节假日
+    判断指定日期是否为节假日（委托给 holiday_service）
     
     参数:
         dt: datetime 对象，默认为当前时间
-        
+        market_type: "fund"(基金/股票) 或 "gold"(黄金)
+    
     返回:
         bool: 是否为节假日
     """
-    if dt is None:
-        dt = datetime.now()
-    
-    date_str = dt.strftime("%Y-%m-%d")
-    holidays = fetch_holidays(dt.year)
-    
-    return date_str in holidays
+    return holiday_service_is_holiday(dt, market_type)
 
 
 def get_weekday(dt=None):
@@ -99,13 +56,14 @@ def get_weekday(dt=None):
     return dt.weekday()
 
 
-def is_trading_day(dt=None):
+def is_trading_day(dt=None, market_type="fund"):
     """
     判断是否为交易日（周一至周五且非节假日）
     
     参数:
         dt: datetime 对象，默认为当前时间
-        
+        market_type: "fund"(基金/股票) 或 "gold"(黄金)
+    
     返回:
         bool: 是否为交易日
     """
@@ -119,7 +77,7 @@ def is_trading_day(dt=None):
         return False
     
     # 节假日不是交易日
-    if is_holiday(dt):
+    if is_holiday(dt, market_type):
         return False
     
     return True
@@ -140,7 +98,7 @@ def get_trading_status(dt=None):
     
     current_time = dt.time()
     weekday = get_weekday(dt)
-    holiday = is_holiday(dt)
+    holiday = is_holiday(dt, "gold")
     
     result = {
         "is_trading_time": False,
@@ -253,7 +211,7 @@ def get_fund_trading_status(dt=None):
     
     current_time = dt.time()
     weekday = get_weekday(dt)
-    holiday = is_holiday(dt)
+    holiday = is_holiday(dt, "fund")
     
     result = {
         "is_trading_time": False,
@@ -273,7 +231,7 @@ def get_fund_trading_status(dt=None):
     t1500 = datetime.strptime("15:00", "%H:%M").time()
     
     # 如果不是交易日，计算下次开盘时间
-    if not is_trading_day(dt):
+    if not is_trading_day(dt, "fund"):
         next_trading_day = _find_next_trading_day(dt)
         day_open = datetime.combine(next_trading_day, t930)
         
