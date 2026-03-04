@@ -15,7 +15,8 @@ createApp({
             holdingsLastUpdate: '--',
             isLoadingHoldings: false,
             holdingsTimer: null,
-            fundPriceAnimating: false,
+            fundRollAnimating: { todayProfit: false, totalProfit: false, profitRate: false },
+            fundRollTimers: { todayProfit: null, totalProfit: null, profitRate: null },
             priceAnimating: false,
             holdingModal: {
                 visible: false,
@@ -230,6 +231,10 @@ createApp({
         formatPrice(price) { return (price === undefined || price === null || isNaN(price)) ? '--' : parseFloat(price).toFixed(2); },
         formatAmount(amount) { return (amount === undefined || amount === null || isNaN(amount)) ? '--' : parseFloat(amount).toFixed(2); },
         formatPercent(val) { return (val === undefined || val === null || isNaN(val)) ? '0.00' : (val >= 0 ? '+' : '') + parseFloat(val).toFixed(2); },
+        formatSignedFixed(val, digits = 0) {
+            const num = Number(val || 0);
+            return `${num >= 0 ? '+' : ''}${num.toFixed(digits)}`;
+        },
         toggleTheme() {
             // 性能优化：在切换主题前临时禁用所有过渡效果，防止大量元素同时重绘导致的卡顿
             document.documentElement.classList.add('no-transitions');
@@ -322,6 +327,21 @@ createApp({
             this.holdingsPulse[field] = false;
             this.$nextTick(() => { this.holdingsPulse[field] = true; });
             this.holdingsPulse.timers[field] = setTimeout(() => { this.holdingsPulse[field] = false; this.holdingsPulse.timers[field] = null; }, 1000);
+        },
+        triggerFundRoll(field) {
+            const timer = this.fundRollTimers[field];
+            if (timer) {
+                clearTimeout(timer);
+                this.fundRollTimers[field] = null;
+            }
+            this.fundRollAnimating[field] = false;
+            this.$nextTick(() => {
+                this.fundRollAnimating[field] = true;
+            });
+            this.fundRollTimers[field] = setTimeout(() => {
+                this.fundRollAnimating[field] = false;
+                this.fundRollTimers[field] = null;
+            }, 600);
         },
         async fetchTradingStatus(type = 'gold') {
             try {
@@ -1010,14 +1030,24 @@ createApp({
                         });
                         setTimeout(() => { this.holdings.forEach(h => { h.animating = false; }); }, 1000);
                     } else { this.holdings = data.data || []; }
+                    const previousSummary = this.holdingsSummary ? { ...this.holdingsSummary } : null;
                     this.holdingsSummary = data.summary || { total_cost: 0, total_value: 0, total_profit: 0, total_profit_rate: 0, count: 0 };
                     this.$nextTick(() => { this.updateHoldingsListHeight(); });
                     const newLastUpdate = data.last_update || '--';
                     const lastUpdateChanged = this.holdingsLastUpdate !== newLastUpdate;
                     this.holdingsLastUpdate = newLastUpdate;
-                    if (this.currentView === 'fund' && this.holdings.length > 0) {
-                        this.fundPriceAnimating = true;
-                        setTimeout(() => { this.fundPriceAnimating = false; }, 600);
+                    if (this.currentView === 'fund' && this.holdings.length > 0 && previousSummary) {
+                        const oldToday = this.formatSignedFixed(previousSummary.total_today_profit, 0);
+                        const newToday = this.formatSignedFixed(this.holdingsSummary.total_today_profit, 0);
+                        if (oldToday !== newToday) this.triggerFundRoll('todayProfit');
+
+                        const oldTotal = this.formatSignedFixed(previousSummary.total_profit, 0);
+                        const newTotal = this.formatSignedFixed(this.holdingsSummary.total_profit, 0);
+                        if (oldTotal !== newTotal) this.triggerFundRoll('totalProfit');
+
+                        const oldRate = this.formatSignedFixed(previousSummary.total_profit_rate, 2);
+                        const newRate = this.formatSignedFixed(this.holdingsSummary.total_profit_rate, 2);
+                        if (oldRate !== newRate) this.triggerFundRoll('profitRate');
                     }
                     if (lastUpdateChanged && this.currentView === 'fund') {
                         if (this.fundTimeAnimTimer) clearTimeout(this.fundTimeAnimTimer);
@@ -1115,6 +1145,12 @@ createApp({
         if (this.tradingTimer) clearInterval(this.tradingTimer);
         if (this.timeAnimTimer) clearTimeout(this.timeAnimTimer);
         if (this.fundTimeAnimTimer) clearTimeout(this.fundTimeAnimTimer);
+        ['todayProfit', 'totalProfit', 'profitRate'].forEach(field => {
+            if (this.fundRollTimers[field]) {
+                clearTimeout(this.fundRollTimers[field]);
+                this.fundRollTimers[field] = null;
+            }
+        });
         window.removeEventListener('resize', this.handleResize);
         if (this.chartInstance) { this.chartInstance.destroy(); this.chartInstance = null; }
     }

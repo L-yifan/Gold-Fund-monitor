@@ -41,4 +41,6 @@ yolotrain/
 data.json
 data/data.json
 data/holiday_cache.json
+data/exchange_calendar.json
+data/sge_holidays.json
 manual_records.json

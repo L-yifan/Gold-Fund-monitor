@@ -259,7 +259,7 @@
                                 style="color: var(--theme-text-muted);">预估今日收益</span>
                             <span class="digit-container">
                                 <span class="text-lg font-black font-mono"
-                                    :class="[(holdingsSummary.total_today_profit || 0) >= 0 ? 'text-red-500' : 'text-green-500', { 'digit-roll': fundPriceAnimating }]">{{
+                                    :class="[(holdingsSummary.total_today_profit || 0) >= 0 ? 'text-red-500' : 'text-green-500', { 'digit-roll': fundRollAnimating.todayProfit }]">{{
                                     (holdingsSummary.total_today_profit || 0) >= 0 ? '+' : '' }}{{
                                     (holdingsSummary.total_today_profit || 0).toFixed(0) }}</span>
                             </span>
@@ -271,7 +271,7 @@
                                 style="color: var(--theme-text-muted);">总盈亏</span>
                             <span class="digit-container">
                                 <span class="text-lg font-black font-mono"
-                                    :class="[holdingsSummary.total_profit >= 0 ? 'text-red-500' : 'text-green-500', { 'digit-roll': fundPriceAnimating }]">{{
+                                    :class="[holdingsSummary.total_profit >= 0 ? 'text-red-500' : 'text-green-500', { 'digit-roll': fundRollAnimating.totalProfit }]">{{
                                     holdingsSummary.total_profit >= 0 ? '+' : '' }}{{
                                     holdingsSummary.total_profit.toFixed(0) }}</span>
                             </span>
@@ -742,7 +742,7 @@
                                 <span class="digit-container">
                                     <span
                                         class="text-xl font-black font-mono tracking-tighter transition-colors duration-300"
-                                        :class="[(holdingsSummary.total_today_profit || totalTodayProfit) >= 0 ? 'text-red-500' : 'text-green-500', holdingsPulse.todayProfit ? 'animate-number-pulse' : '', { 'digit-roll': fundPriceAnimating }]">{{
+                                        :class="[(holdingsSummary.total_today_profit || totalTodayProfit) >= 0 ? 'text-red-500' : 'text-green-500', holdingsPulse.todayProfit ? 'animate-number-pulse' : '', { 'digit-roll': fundRollAnimating.todayProfit }]">{{
                                         (holdingsSummary.total_today_profit || totalTodayProfit) >= 0 ? '+' : '' }}{{
                                         (holdingsSummary.total_today_profit || totalTodayProfit).toFixed(0) }}</span>
                                 </span>
@@ -756,7 +756,7 @@
                                 <span class="digit-container">
                                     <span
                                         class="text-xl font-black font-mono tracking-tighter transition-colors duration-300"
-                                        :class="[holdingsSummary.total_profit >= 0 ? 'text-red-500' : 'text-green-500', holdingsPulse.totalProfit ? 'animate-number-pulse' : '', { 'digit-roll': fundPriceAnimating }]">{{
+                                        :class="[holdingsSummary.total_profit >= 0 ? 'text-red-500' : 'text-green-500', holdingsPulse.totalProfit ? 'animate-number-pulse' : '', { 'digit-roll': fundRollAnimating.totalProfit }]">{{
                                         holdingsSummary.total_profit >= 0 ? '+' : '' }}{{
                                         holdingsSummary.total_profit.toFixed(0) }}</span>
                                 </span>
@@ -770,7 +770,7 @@
                                 <span class="digit-container">
                                     <span
                                         class="text-xl font-black font-mono tracking-tighter transition-colors duration-300"
-                                        :class="[holdingsSummary.total_profit_rate >= 0 ? 'text-red-500' : 'text-green-500', holdingsPulse.profitRate ? 'animate-number-pulse' : '', { 'digit-roll': fundPriceAnimating }]">{{
+                                        :class="[holdingsSummary.total_profit_rate >= 0 ? 'text-red-500' : 'text-green-500', holdingsPulse.profitRate ? 'animate-number-pulse' : '', { 'digit-roll': fundRollAnimating.profitRate }]">{{
                                         holdingsSummary.total_profit_rate >= 0 ? '+' : '' }}{{
                                         holdingsSummary.total_profit_rate.toFixed(2) }}<span
                                             class="text-xs ml-0.5 opacity-60">%</span></span>
